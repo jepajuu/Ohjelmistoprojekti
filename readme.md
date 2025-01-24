@@ -1,1 +1,1 @@
-Terve kaikille
+Tämä on laivanupotuspeli. Kiinnittäkää turvavyönne
