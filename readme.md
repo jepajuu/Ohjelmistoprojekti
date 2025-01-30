@@ -1,2 +1,1 @@
-Tämä on laivanupotuspeli. Kiinnittäkää turvavyönne
-skipaduweinau
+Tämä on laivanupotuspeli. Kiinnittäkää turvavyönne.
