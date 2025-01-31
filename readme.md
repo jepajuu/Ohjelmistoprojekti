@@ -1,1 +1,1 @@
-Tämä on laivanupotuspeli. Kiinnittäkää turvavyönne
+Tämä on laivanupotuspeli. Kiinnittäkää turvavyönne.
