@@ -7,8 +7,8 @@ GRID_SIZE = 5
 CELL_SIZE = WIDTH // GRID_SIZE
 
 # Värit
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
+WHITE = (0, 0, 0)
+BLACK = (255, 255, 255)
 RED = (255, 0, 0)
 
 # Pygame alustaminen
@@ -18,7 +18,7 @@ pygame.display.set_caption("Laivanupotus")
 
 # SocketIO-yhteys palvelimeen
 sio = socketio.Client()
-sio.connect('http://localhost:5000')
+sio.connect('http://192.168.110.137:5000')
 
 # Pelaajan ampumat koordinaatit
 shots = []
