@@ -1,82 +1,137 @@
 import pygame
 import sys
- 
+import socket
+import threading
+
 # Asetukset
-WIDTH, HEIGHT = 500, 500
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-BLUE = (0, 0, 255)
-GRAY = (200, 200, 200)
- 
-# Pygame alustaminen
+WIDTH, HEIGHT = 1200, 800
+GRID_SIZE = 10
+CELL_SIZE = 50
+BOARD_GAP = CELL_SIZE * 2  # Lisää väliä lautojen väliin
+LETTERS = "ABCDEFGHIJ"
+LIGHT_MODE = {'BG': (255, 255, 255), 'TEXT': (0, 0, 0), 'BUTTON': (200, 200, 200)}
+DARK_MODE = {'BG': (30, 30, 30), 'TEXT': (255, 255, 255), 'BUTTON': (70, 70, 70)}
+current_mode = DARK_MODE  # Dark mode on nyt oletuksena
+
+toggle_rect = pygame.Rect(1100, 20, 60, 30)
+
+# Laivat
+ships = [
+    ("Lentotukialus", 5),
+    ("Taistelulaiva", 4),
+    ("Risteilijä 1", 3),
+    ("Risteilijä 2", 3),
+    ("Hävittäjä", 2),
+    ("Sukellusvene", 1)
+]
+
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Laivanupotus")
- 
-# Fontit
+
 font = pygame.font.Font(None, 36)
 small_font = pygame.font.Font(None, 28)
- 
-def draw_text(text, x, y, color=BLACK, font=font):
+
+def draw_text(text, x, y, color, font=font):
     text_surface = font.render(text, True, color)
     screen.blit(text_surface, (x, y))
- 
-def input_box():
-    input_active = True
-    user_text = ""
- 
-    while input_active:
-        screen.fill(WHITE)
-        draw_text("Enter Server IP:", 150, 150, BLACK)
-        pygame.draw.rect(screen, BLACK, (150, 200, 200, 40), 2)
-        
-        text_surface = font.render(user_text, True, BLACK)
-        screen.blit(text_surface, (160, 210))
- 
+
+def draw_toggle():
+    pygame.draw.rect(screen, current_mode['BUTTON'], toggle_rect)
+    draw_text("Dark" if current_mode == DARK_MODE else "Light", 1110, 25, current_mode['TEXT'], small_font)
+
+def draw_grid(x_offset, y_offset, board, show_ships=True):
+    for row in range(GRID_SIZE):
+        draw_text(str(row + 1), x_offset - 30, y_offset + row * CELL_SIZE + 15, current_mode['TEXT'])
+        for col in range(GRID_SIZE):
+            if row == 0:
+                draw_text(LETTERS[col], x_offset + col * CELL_SIZE + 15, y_offset - 30, current_mode['TEXT'])
+            rect = pygame.Rect(x_offset + col * CELL_SIZE, y_offset + row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+            pygame.draw.rect(screen, current_mode['TEXT'], rect, 1)
+            if show_ships and board[row][col] == 1:
+                pygame.draw.rect(screen, (0, 255, 0), rect)
+
+def place_ships():
+    board = [[0] * GRID_SIZE for _ in range(GRID_SIZE)]
+    return board
+
+def handle_client(conn, addr, board):
+    while True:
+        data = conn.recv(1024).decode()
+        if not data:
+            break
+        x, y = map(int, data.split(","))
+        board[y][x] = 2 if board[y][x] == 1 else 3
+        conn.sendall("ACK".encode())
+    conn.close()
+
+def start_server(board):
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("0.0.0.0", 5555))
+    server.listen(1)
+    conn, addr = server.accept()
+    thread = threading.Thread(target=handle_client, args=(conn, addr, board))
+    thread.start()
+
+def connect_to_server(ip, board):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((ip, 5555))
+    return client
+
+def show_game(player_board, opponent_board, connection):
+    running = True
+    while running:
+        screen.fill(current_mode['BG'])
+        draw_text("Oma kenttä", 200, 50, current_mode['TEXT'])
+        draw_text("Vastustajan kenttä", 700, 50, current_mode['TEXT'])
+        draw_grid(100, 100, player_board, show_ships=True)
+        draw_grid(100 + GRID_SIZE * CELL_SIZE + BOARD_GAP, 100, opponent_board, show_ships=False)
         pygame.display.flip()
- 
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    return user_text
-                elif event.key == pygame.K_BACKSPACE:
-                    user_text = user_text[:-1]
-                else:
-                    user_text += event.unicode
- 
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = pygame.mouse.get_pos()
+                grid_x, grid_y = (x - (100 + GRID_SIZE * CELL_SIZE + BOARD_GAP)) // CELL_SIZE, (y - 100) // CELL_SIZE
+                if 0 <= grid_x < GRID_SIZE and 0 <= grid_y < GRID_SIZE:
+                    connection.sendall(f"{grid_x},{grid_y}".encode())
+                    response = connection.recv(1024).decode()
+
 def show_menu():
+    global current_mode
     running = True
- 
     while running:
-        screen.fill(WHITE)
-        draw_text("Laivanupotus", 180, 100, BLUE, font)
- 
-        # Piirretään napit
-        pygame.draw.rect(screen, GRAY, (150, 200, 200, 50))
-        pygame.draw.rect(screen, GRAY, (150, 300, 200, 50))
- 
-        draw_text("Host", 210, 215, BLACK, small_font)
-        draw_text("Join", 210, 315, BLACK, small_font)
- 
+        screen.fill(current_mode['BG'])
+        draw_text("Laivanupotus", 400, 100, current_mode['TEXT'], font)
+        pygame.draw.rect(screen, current_mode['BUTTON'], (400, 200, 200, 50))
+        pygame.draw.rect(screen, current_mode['BUTTON'], (400, 300, 200, 50))
+        draw_text("Host", 460, 215, current_mode['TEXT'], small_font)
+        draw_text("Join", 460, 315, current_mode['TEXT'], small_font)
+        draw_toggle()
         pygame.display.flip()
- 
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mx, my = pygame.mouse.get_pos()
- 
-                if 150 <= mx <= 350 and 200 <= my <= 250:  # Host
-                    return "host"
-                elif 150 <= mx <= 350 and 300 <= my <= 350:  # Join
-                    ip = input_box()
-                    return "join", ip
- 
-# Testataan alkunäyttö
+                if toggle_rect.collidepoint(mx, my):
+                    current_mode = DARK_MODE if current_mode == LIGHT_MODE else LIGHT_MODE
+                elif 400 <= mx <= 600 and 200 <= my <= 250:
+                    player_board = place_ships()
+                    opponent_board = place_ships()
+                    server_thread = threading.Thread(target=start_server, args=(opponent_board,))
+                    server_thread.start()
+                    show_game(player_board, opponent_board, None)
+                elif 400 <= mx <= 600 and 300 <= my <= 350:
+                    ip = input("Syötä palvelimen IP: ")
+                    player_board = place_ships()
+                    opponent_board = place_ships()
+                    connection = connect_to_server(ip, opponent_board)
+                    show_game(player_board, opponent_board, connection)
+
 if __name__ == "__main__":
-    choice = show_menu()
-    print("Valinta:", choice)
+    show_menu()
