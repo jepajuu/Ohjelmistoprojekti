@@ -20,7 +20,8 @@ HOST_PORT = 5555  # Portti, jota käytetään yhteydenpitoon
 kello = pygame.time.Clock()
 fontti = pygame.font.SysFont(None, 24)
 
-is_dark_mode = True  # Dark/Light teema
+# Dark/Light -teema
+is_dark_mode = True
 
 dark_theme = {
     "bg": (30, 30, 30),
@@ -86,9 +87,9 @@ class Ship:
         col = current_theme()["ship"]
         bor = current_theme()["border"]
         for (grid_x, grid_y) in self.positions:
-            rect = pygame.Rect(offset_x + grid_x * RUUDUN_KOKO,
-                               offset_y + grid_y * RUUDUN_KOKO,
-                               RUUDUN_KOKO, RUUDUN_KOKO)
+            rect = pygame.Rect(offset_x + grid_x * RUUTUJA_KOKO,
+                               offset_y + grid_y * RUUTUJA_KOKO,
+                               RUUTUJA_KOKO, RUUTUJA_KOKO)
             pygame.draw.rect(surface, col, rect)
             pygame.draw.rect(surface, bor, rect, 1)
 
@@ -144,7 +145,7 @@ class Board:
         for i in range(self.width):
             letter_label = chr(ord('A') + i)
             label_surf = fontti.render(letter_label, True, theme_data["text"])
-            lx = offset_x + i * RUUDUN_KOKO + RUUDUN_KOKO // 2 - label_surf.get_width() // 2
+            lx = offset_x + i * RUUTUJA_KOKO + RUUTUJA_KOKO // 2 - label_surf.get_width() // 2
             ly = offset_y - 20
             surface.blit(label_surf, (lx, ly))
 
@@ -152,14 +153,14 @@ class Board:
             number_label = str(j+1)
             label_surf = fontti.render(number_label, True, theme_data["text"])
             nx = offset_x - 25
-            ny = offset_y + j * RUUDUN_KOKO + RUUDUN_KOKO//2 - label_surf.get_height()//2
+            ny = offset_y + j * RUUTUJA_KOKO + RUUTUJA_KOKO//2 - label_surf.get_height()//2
             surface.blit(label_surf, (nx, ny))
 
         for y in range(self.height):
             for x in range(self.width):
-                rect = pygame.Rect(offset_x + x * RUUDUN_KOKO,
-                                   offset_y + y * RUUDUN_KOKO,
-                                   RUUDUN_KOKO, RUUDUN_KOKO)
+                rect = pygame.Rect(offset_x + x * RUUTUJA_KOKO,
+                                   offset_y + y * RUUTUJA_KOKO,
+                                   RUUTUJA_KOKO, RUUTUJA_KOKO)
                 pygame.draw.rect(surface, grid_col, rect)
                 if show_ships:
                     for s in self.ships:
@@ -168,9 +169,9 @@ class Board:
 
                 # Ammutut
                 if self.shots[y][x] == 1:
-                    pygame.draw.circle(surface, miss_col, rect.center, RUUDUN_KOKO//4)
+                    pygame.draw.circle(surface, miss_col, rect.center, RUUTUJA_KOKO//4)
                 elif self.shots[y][x] == 2:
-                    pygame.draw.circle(surface, hit_col, rect.center, RUUDUN_KOKO//4)
+                    pygame.draw.circle(surface, hit_col, rect.center, RUUTUJA_KOKO//4)
 
                 pygame.draw.rect(surface, border_col, rect, 1)
 
@@ -181,6 +182,14 @@ server_socket = None
 client_socket = None
 connection_socket = None  # Kun host hyväksyy clientin, se tallettaa sen tänne
 connected = False         # Yhteys on muodostettu (host <-> client)
+
+# Tieto siitä, olemmeko host (True) vai client (False).
+# Määritetään MAIN_MENU-vaiheessa.
+is_host = None
+
+# Molemmat pelaajat voivat olla "valmiita" laivojen asettamisen jälkeen.
+host_ready = False
+client_ready = False
 
 # Viestien vastaanotto lisätään queue:hun, josta chatbox-luokka voi niitä lukea
 incoming_messages = queue.Queue()
@@ -218,7 +227,7 @@ def join_thread(ip):
         print("Virhe join_threadissä:", e)
 
 def listening_thread(sock):
-    """Kuuntelee saapuvat viestit socketista ja pistää ne incoming_messages-queuehen."""
+    """Kuuntelee saapuvat viestit socketista ja pistää ne incoming_messages-queueen."""
     while True:
         try:
             data = sock.recv(1024)
@@ -276,13 +285,27 @@ class ChatBox:
                 self.input_text += event.unicode
 
     def update(self):
+        global host_ready, client_ready, player_turn
+
         # Tarkista, onko incoming_messages-queuehen tullut viestejä
         while not incoming_messages.empty():
             msg = incoming_messages.get()
-            # Jos viesti alkaa "CHAT:", laitetaan se chatboxiin
+
+            # Chat-viestit
             if msg.startswith("CHAT:"):
                 content = msg[5:].strip()
                 self.messages.append("Vieras: " + content)
+
+            # Kun host tai client kertoo olevansa valmis laivojen asettelussa
+            elif msg == "HOSTREADY":
+                host_ready = True
+            elif msg == "CLIENTREADY":
+                client_ready = True
+
+            # Kun isännän/clientin vuoro vaihtuu
+            elif msg == "SWITCHTURN":
+                # Vastaanottaja saa vuoron
+                player_turn = True
 
     def draw(self, surface):
         theme_data = current_theme()
@@ -310,9 +333,14 @@ JOIN_SCREEN = 2
 SHIP_PLACEMENT = 3
 GAME_STATE = 4
 
+# Kummankin pelaajan local-muuttujat:
+player_turn = False  # Vain host aloittaa "True" -tilassa, client "False".
+
 def main():
-    global is_dark_mode, connected
-    pygame.display.set_caption("Laivanupotus - esimerkkiverkko")
+    global is_dark_mode, connected, is_host
+    global host_ready, client_ready, player_turn
+
+    pygame.display.set_caption("Laivanupotuspeli - esimerkki")
     screen = pygame.display.set_mode((LEVEYS, KORKEUS))
 
     state = MAIN_MENU
@@ -326,11 +354,9 @@ def main():
     current_ship_index = 0
     current_ship = Ship(ship_lengths[current_ship_index], 0, 0, horizontal=True)
 
-    chatbox = ChatBox(800, 50, 200, 600)  # Tehdään kookkaampi chat
+    chatbox = ChatBox(800, 50, 200, 600)
 
-    host_ip = ""
-    join_ip = ""
-    player_turn = True
+    join_ip = ""  # Client syöttää tämän
 
     def draw_main_menu():
         theme_data = current_theme()
@@ -414,6 +440,17 @@ def main():
 
         chatbox.draw(screen)
 
+        # Näytetään "odotetaan toista" jos vain toinen on valmis
+        # -> (jos host_ready ja client_ready) => molemmat valmiita
+        if is_host:
+            if host_ready and not client_ready:
+                waiting_txt = fontti.render("Odotetaan toista pelaajaa...", True, theme_data["text"])
+                screen.blit(waiting_txt, (50, 70))
+        else:
+            if client_ready and not host_ready:
+                waiting_txt = fontti.render("Odotetaan toista pelaajaa...", True, theme_data["text"])
+                screen.blit(waiting_txt, (50, 70))
+
     def draw_game_state():
         theme_data = current_theme()
         screen.fill(theme_data["bg"])
@@ -432,11 +469,21 @@ def main():
         vuoro_render = fontti.render(turn_text, True, theme_data["text"])
         screen.blit(vuoro_render, (50, 700))
 
+    # Päälooppi
     running = True
     while running:
         kello.tick(30)
         # Päivitetään chatbox (luetaan incoming_messages).
         chatbox.update()
+
+        # Jos molemmat valmiita => state = GAME_STATE (jos ei jo)
+        if state == SHIP_PLACEMENT and host_ready and client_ready:
+            state = GAME_STATE
+            # Vain host aloittaa
+            if is_host:
+                player_turn = True
+            else:
+                player_turn = False
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -450,11 +497,13 @@ def main():
                     host_rect, join_rect, toggle_rect = draw_main_menu()
                     if host_rect.collidepoint((mx, my)):
                         # Käynnistetään host-thread
+                        is_host = True
                         t = threading.Thread(target=host_thread)
                         t.daemon = True
                         t.start()
                         state = HOST_SCREEN
                     elif join_rect.collidepoint((mx, my)):
+                        is_host = False
                         state = JOIN_SCREEN
                     elif toggle_rect.collidepoint((mx, my)):
                         is_dark_mode = not is_dark_mode
@@ -483,9 +532,7 @@ def main():
             elif state == SHIP_PLACEMENT:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
-                        current_ship.x -= 1
-                        if current_ship.x < 0:
-                            current_ship.x = 0
+                        current_ship.x = max(current_ship.x - 1, 0)
                         current_ship.update_positions()
                     elif event.key == pygame.K_RIGHT:
                         current_ship.x += 1
@@ -493,9 +540,7 @@ def main():
                             current_ship.x = RUUTUJA_X - current_ship.length
                         current_ship.update_positions()
                     elif event.key == pygame.K_UP:
-                        current_ship.y -= 1
-                        if current_ship.y < 0:
-                            current_ship.y = 0
+                        current_ship.y = max(current_ship.y - 1, 0)
                         current_ship.update_positions()
                     elif event.key == pygame.K_DOWN:
                         current_ship.y += 1
@@ -511,21 +556,29 @@ def main():
                             if current_ship.y + current_ship.length > RUUTUJA_Y:
                                 current_ship.y = RUUTUJA_Y - current_ship.length
                         current_ship.update_positions()
+
                     elif event.key == pygame.K_RETURN:
                         if player_board.place_ship(current_ship):
                             current_ship_index += 1
                             if current_ship_index < len(ship_lengths):
-                                current_ship = Ship(ship_lengths[current_ship_index], 0, 0, horizontal=True)
+                                current_ship = Ship(ship_lengths[current_ship_index], 0, 0, True)
                             else:
-                                state = GAME_STATE
+                                # Olen nyt valmis
+                                if is_host:
+                                    host_ready = True
+                                    send_message("HOSTREADY")
+                                else:
+                                    client_ready = True
+                                    send_message("CLIENTREADY")
 
             elif state == GAME_STATE:
                 if player_turn:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         mx, my = event.pos
-                        board_x = (mx - 400) // RUUDUN_KOKO
-                        board_y = (my - 100) // RUUDUN_KOKO
+                        board_x = (mx - 400) // RUUTUJA_KOKO
+                        board_y = (my - 100) // RUUTUJA_KOKO
                         if 0 <= board_x < RUUTUJA_X and 0 <= board_y < RUUTUJA_Y:
+                            # Paikallinen ammunta -> enemy_board
                             osuma = enemy_board.shoot(board_x, board_y)
                             if osuma:
                                 print("Osuma!")
@@ -533,11 +586,11 @@ def main():
                                 print("Huti!")
                             if enemy_board.all_sunk():
                                 print("Voitit pelin!")
-                            # Vaihdetaan vuoro
+                            # Vuoro loppuu -> passivoidaan itsemme, ilmoitetaan verkkoon "SWITCHTURN"
                             player_turn = False
+                            send_message("SWITCHTURN")
                 else:
-                    # Tässä pitäisi toteuttaa vastustajan liike (verkosta) 
-                    # tai simuloida sitä, nyt vain placeholder
+                    # Odotamme, kunnes saamme "SWITCHTURN" -viestin, joka asettaa player_turn = True
                     pass
 
         # Piirto
@@ -556,6 +609,10 @@ def main():
 
     pygame.quit()
     sys.exit()
+
+# KORJAA RUUTUJA_KOKO kirjoitusvirheet
+# (muuta RUUTUJA_KOKO -> RUUDUN_KOKO tai toisinpäin, jos tarve).
+RUUTUJA_KOKO = RUUDUN_KOKO  # Jotta koodi pysyy yhtenäisenä
 
 if __name__ == "__main__":
     main()
