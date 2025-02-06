@@ -52,7 +52,17 @@ def draw_grid(x_offset, y_offset, board, show_ships=True):
                 pygame.draw.rect(screen, (0, 255, 0), rect)
 
 def place_ships():
-    return [[0] * GRID_SIZE for _ in range(GRID_SIZE)]
+    board = [[0] * GRID_SIZE for _ in range(GRID_SIZE)]
+    return board
+
+def wait_for_opponent():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("0.0.0.0", 5555))
+    server.listen(1)
+    print("Odotetaan vastustajaa...")
+    conn, addr = server.accept()
+    print(f"Vastustaja liittyi peliin: {addr}")
+    return conn
 
 def input_box():
     user_text = ""
@@ -114,14 +124,17 @@ def show_menu():
                 if toggle_rect.collidepoint(mx, my):
                     current_mode = DARK_MODE if current_mode == LIGHT_MODE else LIGHT_MODE
                 elif 400 <= mx <= 600 and 200 <= my <= 250:
+                    connection = wait_for_opponent()
                     player_board = place_ships()
                     opponent_board = place_ships()
-                    show_game(player_board, opponent_board, None)
+                    show_game(player_board, opponent_board, connection)
                 elif 400 <= mx <= 600 and 300 <= my <= 350:
                     ip = input_box()
                     player_board = place_ships()
                     opponent_board = place_ships()
-                    show_game(player_board, opponent_board, None)
+                    connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    connection.connect((ip, 5555))
+                    show_game(player_board, opponent_board, connection)
 
 if __name__ == "__main__":
     show_menu()
