@@ -8,11 +8,14 @@ import time
 pygame.init()
 pygame.mixer.init()
 
+# -------------------------------------------------------
 # Ladataan äänet ja grafiikat
+# -------------------------------------------------------
 try:
     bomb_sound = pygame.mixer.Sound("bomb.wav")
 except:
     bomb_sound = None
+
 try:
     explosion_image = pygame.image.load("explosion.png").convert_alpha()
 except:
@@ -27,7 +30,8 @@ RUUDUN_KOKO = 30
 RUUTUJA_X = 10
 RUUTUJA_Y = 10
 
-HOST_PORT = 5555  # TCP-portti
+HOST_PORT = 5555       # TCP-portti pelille
+DISCOVERY_PORT = 5556  # UDP-portti LAN-scan -toiminnolle (broadcast)
 
 kello = pygame.time.Clock()
 fontti = pygame.font.SysFont(None, 24)
@@ -57,11 +61,12 @@ light_theme = {
     "button_bg": (180, 180, 180),
     "button_hover": (160, 160, 160),
 }
+
 def current_theme():
     return dark_theme if is_dark_mode else light_theme
 
 def get_own_ip():
-    """Hakee paikallisen IP:n (yksinkertainen tapa)."""
+    """Hakee paikallisen IP-osoitteen (yksinkertainen tapa)."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
@@ -73,7 +78,18 @@ def get_own_ip():
     return ip
 
 # -------------------------------------------------------
-# Pelirakenteet
+# Muuttujia, jotka oltava ennen funktioita,
+# jotta global toimii virheittä
+# -------------------------------------------------------
+discovery_thread_running = False
+discovery_thread = None
+
+found_hosts = []
+scan_in_progress = False
+
+
+# -------------------------------------------------------
+# Laiva ja lauta
 # -------------------------------------------------------
 class Ship:
     def __init__(self, length, x, y, horizontal=True):
@@ -102,6 +118,7 @@ class Ship:
             pygame.draw.rect(surface, col, rect)
             pygame.draw.rect(surface, bor, rect, 1)
 
+
 class Board:
     def __init__(self, width, height):
         self.width = width
@@ -111,10 +128,11 @@ class Board:
         self.ships = []
 
     def place_ship(self, ship):
-        # Tarkistetaan rajat ja päällekkäisyydet
+        # Tarkista rajat
         for (x, y) in ship.positions:
             if x < 0 or x >= self.width or y < 0 or y >= self.height:
                 return False
+        # Tarkista päällekkäisyys
         for s in self.ships:
             for pos in s.positions:
                 if pos in ship.positions:
@@ -123,14 +141,9 @@ class Board:
         return True
 
     def add_raw_positions(self, positions):
-        """
-        Vastaanottaa listan ruutuja (x,y), joista jokainen kuuluu johonkin laivaan.
-        Muodostetaan laivat yksinkertaisesti: jokainen ruutu = laiva pituudella 1
-        (Demo). Tai ryhmittele halutessasi. 
-        """
-        for (x, y) in positions:
-            # Tehdään "1-ruudun laiva"
-            s = Ship(1, x, y, horizontal=True)
+        """Tallentaa jokaisen (x,y)-ruudun yksittäisenä laivana (demo)."""
+        for (x,y) in positions:
+            s = Ship(1, x, y, True)
             self.ships.append(s)
 
     def check_hit(self, x, y):
@@ -162,28 +175,26 @@ class Board:
         miss_col = theme_data["shot_miss"]
         hit_col = theme_data["shot_hit"]
 
-        # Kirjaimet
+        # Koordinaatisto
         for i in range(self.width):
-            letter_label = chr(ord('A') + i)
-            lsurf = fontti.render(letter_label, True, theme_data["text"])
-            lx = offset_x + i * RUUDUN_KOKO + RUUDUN_KOKO//2 - lsurf.get_width()//2
+            letter = chr(ord('A') + i)
+            label_surf = fontti.render(letter, True, theme_data["text"])
+            lx = offset_x + i*RUUDUN_KOKO + RUUDUN_KOKO//2 - label_surf.get_width()//2
             ly = offset_y - 20
-            surface.blit(lsurf, (lx, ly))
+            surface.blit(label_surf, (lx, ly))
 
-        # Numerot
         for j in range(self.height):
             number_label = str(j+1)
-            nsurf = fontti.render(number_label, True, theme_data["text"])
+            label_surf = fontti.render(number_label, True, theme_data["text"])
             nx = offset_x - 25
-            ny = offset_y + j * RUUDUN_KOKO + RUUDUN_KOKO//2 - nsurf.get_height()//2
-            surface.blit(nsurf, (nx, ny))
+            ny = offset_y + j*RUUDUN_KOKO + RUUDUN_KOKO//2 - label_surf.get_height()//2
+            surface.blit(label_surf, (nx, ny))
 
-        # Ruutu
         for row in range(self.height):
             for col in range(self.width):
-                rect = pygame.Rect(offset_x + col * RUUDUN_KOKO,
-                                   offset_y + row * RUUDUN_KOKO,
-                                   RUUDUN_KOKO, RUUDUN_KOKO)
+                rx = offset_x + col * RUUDUN_KOKO
+                ry = offset_y + row * RUUDUN_KOKO
+                rect = pygame.Rect(rx, ry, RUUDUN_KOKO, RUUDUN_KOKO)
                 pygame.draw.rect(surface, grid_col, rect)
                 # Näytetään laivat
                 if show_ships:
@@ -191,7 +202,6 @@ class Board:
                         if (col, row) in s.positions:
                             pygame.draw.rect(surface, theme_data["ship"], rect)
 
-                # Ammutut
                 val = self.shots[row][col]
                 if val == 1:
                     pygame.draw.circle(surface, miss_col, rect.center, RUUDUN_KOKO//4)
@@ -200,18 +210,80 @@ class Board:
 
                 pygame.draw.rect(surface, border_col, rect, 1)
 
+
 # -------------------------------------------------------
-# Verkkotoiminnot
+# LAN Discovery (SCAN)
+# -------------------------------------------------------
+def discovery_server():
+    """
+    Host vastaa broadcast-kyselyihin: kun client lähettää "DISCOVER_BATTLESHIP",
+    host lähettää "BATTLESHIP_HOST:<hostin_ip>".
+    """
+    global discovery_thread_running
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("", DISCOVERY_PORT))
+    sock.settimeout(1.0)
+
+    myip = get_own_ip()
+    try:
+        while discovery_thread_running:
+            try:
+                data, addr = sock.recvfrom(1024)
+                text = data.decode("utf-8")
+                if text == "DISCOVER_BATTLESHIP":
+                    response = f"BATTLESHIP_HOST:{myip}"
+                    sock.sendto(response.encode("utf-8"), addr)
+            except socket.timeout:
+                pass
+    finally:
+        sock.close()
+
+
+def scan_for_hosts():
+    """
+    Client lähettää broadcastin "DISCOVER_BATTLESHIP" porttiin 5556,
+    odottaa 2s, ja tallentaa vastaukset found_hosts-listaan.
+    """
+    global found_hosts, scan_in_progress
+    found_hosts.clear()
+    scan_in_progress = True
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.settimeout(2.0)
+
+    try:
+        msg = "DISCOVER_BATTLESHIP".encode("utf-8")
+        sock.sendto(msg, ("<broadcast>", DISCOVERY_PORT))
+
+        start_t = time.time()
+        while time.time() - start_t < 2.0:
+            try:
+                data, addr = sock.recvfrom(1024)
+                text = data.decode("utf-8").strip()
+                if text.startswith("BATTLESHIP_HOST:"):
+                    ip = text.split(":")[1]
+                    if ip not in found_hosts:
+                        found_hosts.append(ip)
+            except socket.timeout:
+                pass
+    finally:
+        sock.close()
+        scan_in_progress = False
+
+
+# -------------------------------------------------------
+# Verkko (TCP)
 # -------------------------------------------------------
 server_socket = None
 client_socket = None
 connection_socket = None
 connected = False
-is_host = None  # True = host, False = client
 
 incoming_messages = queue.Queue()
 
 def host_thread():
+    """Host odottaa clientin connectia."""
     global server_socket, connection_socket, connected
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -222,6 +294,7 @@ def host_thread():
         print("HOST: Yhteys saatu:", addr)
         connection_socket = conn
         connected = True
+        # Lukusäie
         t = threading.Thread(target=listening_thread, args=(connection_socket,))
         t.daemon = True
         t.start()
@@ -229,12 +302,14 @@ def host_thread():
         print("Virhe host_thread:", e)
 
 def join_thread(ip):
+    """Client yrittää yhdistää hostiin."""
     global client_socket, connected
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((ip, HOST_PORT))
         print("CLIENT: Yhdistys onnistui serveriin:", ip)
         connected = True
+        # Lukusäie
         t = threading.Thread(target=listening_thread, args=(client_socket,))
         t.daemon = True
         t.start()
@@ -242,6 +317,7 @@ def join_thread(ip):
         print("Virhe join_thread:", e)
 
 def listening_thread(sock):
+    """Kuuntelee viestejä, puskee incoming_messages-queueen."""
     while True:
         try:
             data = sock.recv(1024)
@@ -269,14 +345,15 @@ def send_message(msg):
         except:
             pass
 
+
 # -------------------------------------------------------
 # ChatBox
 # -------------------------------------------------------
 class ChatBox:
     def __init__(self, x, y, w, h):
         self.rect = pygame.Rect(x, y, w, h)
-        self.messages_rect = pygame.Rect(x, y, w, h-40)
-        self.input_rect = pygame.Rect(x, y+h-40, w, 40)
+        self.messages_rect = pygame.Rect(x, y, w, h - 40)
+        self.input_rect = pygame.Rect(x, y + h - 40, w, 40)
 
         self.messages = []
         self.input_text = ""
@@ -303,7 +380,7 @@ class ChatBox:
     def update(self):
         global state, player_turn, enemy_board, player_board
         global ships_placed, enemy_ships_placed
-        global last_shot_result, last_shot_timer
+        global last_shot_result, last_shot_timer, last_shot_coords
 
         while not incoming_messages.empty():
             msg = incoming_messages.get()
@@ -312,54 +389,46 @@ class ChatBox:
                 text = msg[5:].strip()
                 self.messages.append("Vieras: " + text)
 
-            # Vastustaja on lähettänyt laivansa koordinaatit
+            # ALLSHIPS
             elif msg.startswith("ALLSHIPS:"):
-                # Muodostetaan list of (x,y)
-                # Muoto: ALLSHIPS:x1,y1 x2,y2 x3,y3 ...
                 coords_str = msg[len("ALLSHIPS:"):].strip()
                 coords_pairs = coords_str.split()
                 positions = []
                 for cp in coords_pairs:
-                    x_str, y_str = cp.split(",")
-                    x, y = int(x_str), int(y_str)
-                    positions.append((x, y))
-                # Tallennetaan ne "enemy_board" => nyt tiedämme vastustajan laivat
+                    sx, sy = cp.split(",")
+                    x, y = int(sx), int(sy)
+                    positions.append((x,y))
+                # Tallennetaan enemy_boardiin
                 enemy_board.add_raw_positions(positions)
                 enemy_ships_placed = True
-                print("Saimme vastustajan laivojen koordinaatit, enemy_ships_placed=True")
+                print("Vastustajan laivat vastaanotettu")
 
-            # Ammunta
+            # SHOOT
             elif msg.startswith("SHOOT:"):
-                # SHOOT:x,y
                 xy_str = msg[len("SHOOT:"):].strip()
                 sx, sy = xy_str.split(",")
                 tx, ty = int(sx), int(sy)
-
-                # Vastustaja ampuu meitä -> tarkistamme omat laivamme (player_board)
+                # Vastustaja ampuu meitä
                 was_hit = player_board.shoot(tx, ty)
                 if was_hit:
-                    # Jos kaikki uponneet, ilmoitamme voiton ampujalle
                     if player_board.all_sunk():
+                        # Kaikki uponneet => vastustaja voitti => RESULT:hit win
                         send_message("RESULT:hit win")
                     else:
                         send_message("RESULT:hit")
                 else:
                     send_message("RESULT:miss")
 
+            # RESULT
             elif msg.startswith("RESULT:"):
-                # RESULT:hit / RESULT:hit win / RESULT:miss
                 parts = msg.split()
-                main_part = parts[0]  # "RESULT:hit" tms.
-                # Onko "win" merkkijono kakkososassa?
+                main_part = parts[0]  # esim. RESULT:hit
                 got_win = False
-                if len(parts) > 1 and parts[1] == "win":
+                if len(parts)>1 and parts[1] == "win":
                     got_win = True
 
                 if main_part == "RESULT:hit":
-                    # Päivitetään local "enemy_board" viimeksi ammuttuun ruutuun
-                    # Emme suoraan tiedä, mihin x,y ammuttiin -> pidämme sen tallessa "last_shot_coords"?
-                    # (Demossa tallennamme sen globaaliin)
-                    global last_shot_coords
+                    # Merkitään edellinen laukaus osumaksi
                     if last_shot_coords:
                         (xx, yy) = last_shot_coords
                         enemy_board.shots[yy][xx] = 2
@@ -374,29 +443,54 @@ class ChatBox:
                     last_shot_timer = 30
 
                 if got_win:
-                    # Vastustaja kertoi: "RESULT:hit win" => me voitimme
-                    # ... koska ampuja voittaa
-                    # Oikeasti se tarkoittaa, että vastustajan laivat loppuivat
-                    # => me olemme "WINNER"
+                    # Me (ampuja) voitimme
                     print("Saimme RESULT:hit win => voitimme")
                     state = WIN_SCREEN
-
-                # Vuoro ei vaihdu, ampuja pysyy samana vain jos haluaa ns. "jatkuvat osumat"
-                # Oletetaan, että aina vuoro siirtyy
-                player_turn = False
-                send_message("SWITCHTURN")
+                else:
+                    # Vuoro vaihtuu
+                    player_turn = False
+                    send_message("SWITCHTURN")
 
             elif msg == "SWITCHTURN":
                 # Nyt me saamme vuoron
                 player_turn = True
 
             elif msg == "YOU_LOSE":
-                # Vastustaja ilmoitti, että me hävisimme
-                print("YOU_LOSE vastaanotettu => state=LOSE_SCREEN")
+                # Vihollinen kertoi että hävisimme
+                print("YOU_LOSE => state=LOSE_SCREEN")
                 state = LOSE_SCREEN
 
+    def draw(self, surface):
+        theme_data = current_theme()
+        pygame.draw.rect(surface, theme_data["bg"], self.rect)
+        pygame.draw.rect(surface, theme_data["border"], self.rect, 2)
+
+        # Messages-alue
+        pygame.draw.rect(surface, theme_data["bg"], self.messages_rect)
+        pygame.draw.rect(surface, theme_data["border"], self.messages_rect, 1)
+
+        # Input-alue
+        if self.active:
+            color = (100, 255, 100)
+        else:
+            color = theme_data["border"]
+        pygame.draw.rect(surface, theme_data["bg"], self.input_rect)
+        pygame.draw.rect(surface, color, self.input_rect, 2)
+
+        # Teksti inputissa
+        txtsurf = fontti.render(self.input_text, True, theme_data["text"])
+        surface.blit(txtsurf, (self.input_rect.x+5, self.input_rect.y+10))
+
+        # Viestilista
+        offset_y = 5
+        for m in reversed(self.messages[-15:]):
+            msurf = fontti.render(m, True, theme_data["text"])
+            surface.blit(msurf, (self.messages_rect.x+5, self.messages_rect.y+offset_y))
+            offset_y += 20
+
+
 # -------------------------------------------------------
-# Pelitilat
+# Peli: tilat, muuttujat
 # -------------------------------------------------------
 MAIN_MENU = 0
 HOST_SCREEN = 1
@@ -408,185 +502,221 @@ LOSE_SCREEN = 6
 
 state = MAIN_MENU
 
-# Pelin sisäisiä globaaleja
 player_board = Board(RUUTUJA_X, RUUTUJA_Y)
 enemy_board = Board(RUUTUJA_X, RUUTUJA_Y)
 
-ship_lengths = [5, 4, 3, 3, 2]
+ship_lengths = [5,4,3,3,2]
 current_ship_index = 0
 current_ship = Ship(ship_lengths[current_ship_index], 0, 0, True)
 
 chatbox = ChatBox(800, 50, 200, 600)
 
-player_turn = False      # Kuka aloittaa? (host aloittaa kun laivat on valmiit)
-ships_placed = False     # Omat laivat
-enemy_ships_placed = False  # Vastustajan laivat
+player_turn = False
+ships_placed = False
+enemy_ships_placed = False
 
 join_ip = ""
 
-# Kun ampuja lähettää SHOOT, tallennamme koordinaatit:
 last_shot_coords = None
 last_shot_result = None
 last_shot_timer = 0
+
+# LAN-scan UI
+scan_button_rect = pygame.Rect(50, 200, 150, 40)
+host_list_rects = []
 
 def draw_main_menu(screen):
     theme = current_theme()
     screen.fill(theme["bg"])
 
-    t = fontti.render("Tervetuloa Laivanupotuspeliin!", True, theme["text"])
-    screen.blit(t, (LEVEYS//2 - t.get_width()//2, 50))
+    otsikko = fontti.render("Tervetuloa Laivanupotuspeliin!", True, theme["text"])
+    screen.blit(otsikko, (LEVEYS//2 - otsikko.get_width()//2, 50))
 
-    host_btn = pygame.Rect(LEVEYS//2 - 100, 150, 200, 50)
-    join_btn = pygame.Rect(LEVEYS//2 - 100, 220, 200, 50)
+    host_btn_rect = pygame.Rect(LEVEYS//2 - 100, 150, 200, 50)
+    join_btn_rect = pygame.Rect(LEVEYS//2 - 100, 220, 200, 50)
 
     mx, my = pygame.mouse.get_pos()
 
     # HOST nappi
-    if host_btn.collidepoint((mx,my)):
-        pygame.draw.rect(screen, theme["button_hover"], host_btn)
+    if host_btn_rect.collidepoint((mx, my)):
+        pygame.draw.rect(screen, theme["button_hover"], host_btn_rect)
     else:
-        pygame.draw.rect(screen, theme["button_bg"], host_btn)
-    pygame.draw.rect(screen, theme["border"], host_btn, 2)
+        pygame.draw.rect(screen, theme["button_bg"], host_btn_rect)
+    pygame.draw.rect(screen, theme["border"], host_btn_rect, 2)
     host_label = fontti.render("HOST PELI", True, theme["text"])
-    screen.blit(host_label, (host_btn.centerx - host_label.get_width()//2,
-                             host_btn.centery - host_label.get_height()//2))
+    screen.blit(host_label, (host_btn_rect.centerx - host_label.get_width()//2,
+                             host_btn_rect.centery - host_label.get_height()//2))
 
     # JOIN nappi
-    if join_btn.collidepoint((mx,my)):
-        pygame.draw.rect(screen, theme["button_hover"], join_btn)
+    if join_btn_rect.collidepoint((mx, my)):
+        pygame.draw.rect(screen, theme["button_hover"], join_btn_rect)
     else:
-        pygame.draw.rect(screen, theme["button_bg"], join_btn)
-    pygame.draw.rect(screen, theme["border"], join_btn, 2)
+        pygame.draw.rect(screen, theme["button_bg"], join_btn_rect)
+    pygame.draw.rect(screen, theme["border"], join_btn_rect, 2)
     join_label = fontti.render("JOIN PELI", True, theme["text"])
-    screen.blit(join_label, (join_btn.centerx - join_label.get_width()//2,
-                             join_btn.centery - join_label.get_height()//2))
+    screen.blit(join_label, (join_btn_rect.centerx - join_label.get_width()//2,
+                             join_btn_rect.centery - join_label.get_height()//2))
 
-    # Toggle
-    toggle_rect = pygame.Rect(10,10,100,40)
-    if toggle_rect.collidepoint((mx,my)):
+    # Toggle dark/light
+    toggle_rect = pygame.Rect(10, 10, 100, 40)
+    if toggle_rect.collidepoint((mx, my)):
         pygame.draw.rect(screen, theme["button_hover"], toggle_rect)
     else:
         pygame.draw.rect(screen, theme["button_bg"], toggle_rect)
     pygame.draw.rect(screen, theme["border"], toggle_rect, 2)
-    mode_text = "Light Mode" if is_dark_mode else "Dark Mode"
-    mt = fontti.render(mode_text, True, theme["text"])
-    screen.blit(mt, (toggle_rect.centerx - mt.get_width()//2,
-                     toggle_rect.centery - mt.get_height()//2))
 
-    return host_btn, join_btn, toggle_rect
+    mode_text = "Light Mode" if is_dark_mode else "Dark Mode"
+    toggle_label = fontti.render(mode_text, True, theme["text"])
+    screen.blit(toggle_label, (toggle_rect.centerx - toggle_label.get_width()//2,
+                               toggle_rect.centery - toggle_label.get_height()//2))
+
+    return host_btn_rect, join_btn_rect, toggle_rect
+
 
 def draw_host_screen(screen):
     theme = current_theme()
     screen.fill(theme["bg"])
-    info = fontti.render("Odotetaan pelaajaa liittymään...", True, theme["text"])
-    screen.blit(info, (50,50))
+    t1 = fontti.render("Odotetaan pelaajaa liittymään...", True, theme["text"])
+    screen.blit(t1, (50, 50))
 
     ipaddr = get_own_ip()
-    iptxt = fontti.render(f"IP: {ipaddr} (port {HOST_PORT})", True, theme["text"])
-    screen.blit(iptxt, (50,80))
+    t2 = fontti.render(f"IP: {ipaddr} (port {HOST_PORT})", True, theme["text"])
+    screen.blit(t2, (50, 80))
+
 
 def draw_join_screen(screen):
+    global host_list_rects
     theme = current_theme()
     screen.fill(theme["bg"])
-    txt = fontti.render("Anna hostin IP:", True, theme["text"])
-    screen.blit(txt, (50,50))
-    ip_surf = fontti.render(join_ip, True, theme["text"])
-    screen.blit(ip_surf, (50,80))
 
-    hint = fontti.render("ENTER => yhdistä", True, theme["text"])
-    screen.blit(hint, (50,110))
+    info_text = fontti.render("Anna hostin IP manuaalisesti:", True, theme["text"])
+    screen.blit(info_text, (50, 50))
+
+    ip_surf = fontti.render(join_ip, True, theme["text"])
+    screen.blit(ip_surf, (50, 80))
+
+    join_hint = fontti.render("Paina ENTER liittyäksesi", True, theme["text"])
+    screen.blit(join_hint, (50, 110))
+
+    # SCAN-nappi
+    mx, my = pygame.mouse.get_pos()
+    if scan_button_rect.collidepoint((mx, my)):
+        pygame.draw.rect(screen, theme["button_hover"], scan_button_rect)
+    else:
+        pygame.draw.rect(screen, theme["button_bg"], scan_button_rect)
+    pygame.draw.rect(screen, theme["border"], scan_button_rect, 2)
+
+    scan_label = fontti.render("SCAN LAN", True, theme["text"])
+    screen.blit(scan_label, (scan_button_rect.centerx - scan_label.get_width()//2,
+                             scan_button_rect.centery - scan_label.get_height()//2))
+
+    # Lista löydetyistä hosteista
+    y_offset = 250
+    host_list_rects.clear()
+    for ipaddr in found_hosts:
+        r = pygame.Rect(50, y_offset, 200, 30)
+        host_list_rects.append((r, ipaddr))
+        if r.collidepoint((mx, my)):
+            pygame.draw.rect(screen, theme["button_hover"], r)
+        else:
+            pygame.draw.rect(screen, theme["button_bg"], r)
+        pygame.draw.rect(screen, theme["border"], r, 1)
+
+        ip_label = fontti.render(ipaddr, True, theme["text"])
+        screen.blit(ip_label, (r.x+5, r.y+5))
+
+        y_offset += 40
+
 
 def draw_ship_placement(screen):
     theme = current_theme()
     screen.fill(theme["bg"])
-
-    ohje = "Sijoita laiva (nuolet + R, ENTER hyväksyy)."
-    r = fontti.render(ohje, True, theme["text"])
-    screen.blit(r, (20,20))
+    ohje = fontti.render("Sijoita laiva nuolinäppäimillä, R kääntää, ENTER hyväksyy.", True, theme["text"])
+    screen.blit(ohje, (20, 20))
 
     player_board.draw(screen, 50, 100, show_ships=True)
     current_ship.draw(screen, 50, 100)
-    # Näytä, onko vastustaja jo laivat antanut
+
     if enemy_ships_placed:
-        info = fontti.render("Vastustaja on laittanut laivansa.", True, theme["text"])
-        screen.blit(info, (50,70))
+        info = fontti.render("Vastustaja on sijoittanut laivansa.", True, theme["text"])
+        screen.blit(info, (50, 70))
 
     chatbox.draw(screen)
+
 
 def draw_game_state(screen):
     global last_shot_result, last_shot_timer
     theme = current_theme()
     screen.fill(theme["bg"])
 
-    ohje1 = fontti.render("OMA LAUTA", True, theme["text"])
-    screen.blit(ohje1, (50,70))
+    ohje_oma = fontti.render("OMA LAUTA", True, theme["text"])
+    screen.blit(ohje_oma, (50,70))
     player_board.draw(screen, 50, 100, show_ships=True)
 
-    ohje2 = fontti.render("VIHOLLISEN LAUTA (klikkaa ampua)", True, theme["text"])
-    screen.blit(ohje2, (400,70))
+    ohje_vihu = fontti.render("VIHOLLISEN LAUTA (klikkaa ampua)", True, theme["text"])
+    screen.blit(ohje_vihu, (400,70))
     enemy_board.draw(screen, 400, 100, show_ships=False)
 
-    # Näytetään osuma/huti + explosion
     if last_shot_result and last_shot_timer>0:
-        big = iso_fontti.render(last_shot_result, True, (255,0,0))
-        screen.blit(big, (LEVEYS//2 - big.get_width()//2, 20))
-        # Räjähdyskuva
+        bigtext = iso_fontti.render(last_shot_result, True, (255,0,0))
+        screen.blit(bigtext, (LEVEYS//2 - bigtext.get_width()//2, 20))
         if explosion_image:
             ex_rect = explosion_image.get_rect()
-            ex_rect.center = (LEVEYS//2, 100)
+            ex_rect.center = (LEVEYS//2, 120)
             screen.blit(explosion_image, ex_rect)
 
     turn_text = "Sinun vuoro!" if player_turn else "Vastustajan vuoro..."
-    vt = fontti.render(turn_text, True, theme["text"])
-    screen.blit(vt, (50,700))
+    t = fontti.render(turn_text, True, theme["text"])
+    screen.blit(t, (50, 700))
 
     chatbox.draw(screen)
+
 
 def draw_win_screen(screen):
     theme = current_theme()
     screen.fill(theme["bg"])
-    wtxt = iso_fontti.render("VOITIT PELIN!", True, (255,0,0))
-    screen.blit(wtxt, (LEVEYS//2 - wtxt.get_width()//2, KORKEUS//2 - wtxt.get_height()//2))
+    txt = iso_fontti.render("VOITIT PELIN!", True, (255,0,0))
+    screen.blit(txt, (LEVEYS//2 - txt.get_width()//2, KORKEUS//2 - txt.get_height()//2))
 
 def draw_lose_screen(screen):
     theme = current_theme()
     screen.fill(theme["bg"])
-    ltxt = iso_fontti.render("HÄVISIT PELIN!", True, (255,0,0))
-    screen.blit(ltxt, (LEVEYS//2 - ltxt.get_width()//2, KORKEUS//2 - ltxt.get_height()//2))
+    txt = iso_fontti.render("HÄVISIT PELIN!", True, (255,0,0))
+    screen.blit(txt, (LEVEYS//2 - txt.get_width()//2, KORKEUS//2 - txt.get_height()//2))
+
 
 def main():
     global state, is_host, connected, join_ip
     global current_ship_index, current_ship
-    global ships_placed, enemy_ships_placed
-    global player_turn, last_shot_result, last_shot_timer
-    global last_shot_coords
+    global ships_placed, enemy_ships_placed, player_turn
+    global last_shot_coords, last_shot_result, last_shot_timer
+    global discovery_thread_running, discovery_thread
 
-    pygame.display.set_caption("Laivanupotuspeli - Synkronoitu versio")
+    pygame.display.set_caption("Laivanupotuspeli - LAN-scan + synkronointi")
     screen = pygame.display.set_mode((LEVEYS, KORKEUS))
 
     running = True
+
     while running:
         kello.tick(30)
         chatbox.update()
 
-        # Päivitetään OSUMA/HUTI-teksti
+        # Päivitetään OSUMA/HUTI
         if last_shot_timer>0:
             last_shot_timer -= 1
             if last_shot_timer<=0:
                 last_shot_result = None
 
-        # Jos host on HOST_SCREEN ja connected => siirrytään SHIP_PLACEMENT
+        # Jos host on HOST_SCREEN ja connected => SHIP_PLACEMENT
         if state == HOST_SCREEN and connected:
             state = SHIP_PLACEMENT
-
-        # Jos client on JOIN_SCREEN ja connected => siirrytään SHIP_PLACEMENT
+        # Jos client on JOIN_SCREEN ja connected => SHIP_PLACEMENT
         if state == JOIN_SCREEN and connected:
             state = SHIP_PLACEMENT
 
-        # Jos molemmat laivat asetettu (ships_placed ja enemy_ships_placed), siirrytään GAME_STATE
+        # Jos laivat + vastustajan laivat valmiit => GAME_STATE
         if state == SHIP_PLACEMENT and ships_placed and enemy_ships_placed:
             state = GAME_STATE
-            # Host aloittaa
             if is_host:
                 player_turn = True
             else:
@@ -601,27 +731,54 @@ def main():
             if state == MAIN_MENU:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mx, my = event.pos
-                    h_btn, j_btn, tog = draw_main_menu(screen)
-                    if h_btn.collidepoint((mx,my)):
+                    hbtn, jbtn, toggle_rect = draw_main_menu(screen)
+                    if hbtn.collidepoint((mx,my)):
+                        # HOST
                         is_host = True
+                        # Käynnistetään host TCP-lanka
                         t = threading.Thread(target=host_thread)
                         t.daemon = True
                         t.start()
+
+                        # Käynnistetään discovery_server-lanka, jotta clientin SCAN saa vastauksen
+                        discovery_thread_running = True
+                        discovery_thread = threading.Thread(target=discovery_server)
+                        discovery_thread.daemon = True
+                        discovery_thread.start()
+
                         state = HOST_SCREEN
-                    elif j_btn.collidepoint((mx,my)):
+
+                    elif jbtn.collidepoint((mx,my)):
                         is_host = False
                         state = JOIN_SCREEN
-                    elif tog.collidepoint((mx,my)):
-                        global is_dark_mode
+
+                    elif toggle_rect.collidepoint((mx,my)):
                         is_dark_mode = not is_dark_mode
 
             elif state == HOST_SCREEN:
-                # Odotetaan client-yhteyttä
                 pass
 
             elif state == JOIN_SCREEN:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mx, my = event.pos
+                    # SCAN-nappi
+                    if scan_button_rect.collidepoint((mx, my)):
+                        # Käynnistetään SCAN-lanka
+                        st = threading.Thread(target=scan_for_hosts)
+                        st.daemon = True
+                        st.start()
+                    else:
+                        # Katsotaan klikkaus listaan
+                        for (r, ipaddr) in host_list_rects:
+                            if r.collidepoint((mx,my)):
+                                # Join-lanka
+                                t = threading.Thread(target=join_thread, args=(ipaddr,))
+                                t.daemon = True
+                                t.start()
+
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RETURN:
+                        # Yritetään join syötetylle IP:lle
                         t = threading.Thread(target=join_thread, args=(join_ip,))
                         t.daemon = True
                         t.start()
@@ -631,15 +788,13 @@ def main():
                         join_ip += event.unicode
 
             elif state == SHIP_PLACEMENT:
-                # Liikutellaan laivaa
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         current_ship.x = max(current_ship.x - 1, 0)
                         current_ship.update_positions()
                     elif event.key == pygame.K_RIGHT:
                         current_ship.x += 1
-                        # clamp
-                        if current_ship.horizontal and (current_ship.x + current_ship.length) > RUUTUJA_X:
+                        if current_ship.horizontal and (current_ship.x + current_ship.length)>RUUTUJA_X:
                             current_ship.x = RUUTUJA_X - current_ship.length
                         current_ship.update_positions()
                     elif event.key == pygame.K_UP:
@@ -647,7 +802,7 @@ def main():
                         current_ship.update_positions()
                     elif event.key == pygame.K_DOWN:
                         current_ship.y += 1
-                        if not current_ship.horizontal and (current_ship.y + current_ship.length) > RUUTUJA_Y:
+                        if not current_ship.horizontal and (current_ship.y + current_ship.length)>RUUTUJA_Y:
                             current_ship.y = RUUTUJA_Y - current_ship.length
                         current_ship.update_positions()
                     elif event.key == pygame.K_r:
@@ -662,24 +817,19 @@ def main():
                         current_ship.update_positions()
 
                     elif event.key == pygame.K_RETURN:
-                        # Yritetään sijoittaa laiva
+                        # Yritetään sijoittaa
                         if player_board.place_ship(current_ship):
                             current_ship_index += 1
                             if current_ship_index < len(ship_lengths):
                                 current_ship = Ship(ship_lengths[current_ship_index], 0, 0, True)
                             else:
-                                # Kaikki laivat on asetettu -> lähetetään ALLSHIPS
-                                # kerätään jokaisen laivan jokainen ruutu
+                                # Kaikki laivat asetettu => lähetetään ALLSHIPS
                                 all_positions = []
                                 for s in player_board.ships:
                                     all_positions.extend(s.positions)
-
-                                # Luodaan viesti "ALLSHIPS:x,y x,y x,y..."
-                                pos_strs = []
-                                for (xx, yy) in all_positions:
-                                    pos_strs.append(f"{xx},{yy}")
-                                full_str = "ALLSHIPS:" + " ".join(pos_strs)
-                                send_message(full_str)
+                                pos_strs = [f"{x},{y}" for (x,y) in all_positions]
+                                msg = "ALLSHIPS:" + " ".join(pos_strs)
+                                send_message(msg)
                                 ships_placed = True
 
             elif state == GAME_STATE:
@@ -687,24 +837,20 @@ def main():
                 if player_turn:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         mx, my = event.pos
-                        bx = (mx - 400)//RUUDUN_KOKO
-                        by = (my - 100)//RUUDUN_KOKO
-                        if 0 <= bx < RUUTUJA_X and 0 <= by < RUUTUJA_Y:
-                            # Soitetaan ääniefekti
+                        bx = (mx - 400)//RUUTUJA_KOKO
+                        by = (my - 100)//RUUTUJA_KOKO
+                        if 0<=bx<RUUTUJA_X and 0<=by<RUUTUJA_Y:
+                            # Soitetaan ääni
                             if bomb_sound:
                                 bomb_sound.play()
-                            # Lähetetään SHOOT
+                            # SHOOT
                             send_message(f"SHOOT:{bx},{by}")
-                            # Muistetaan, mihin ammuttiin
                             last_shot_coords = (bx, by)
-                            # Vuoro loppuu, mutta lopullinen vuoronvaihto
-                            # tulee RESULT-viestistä (nykylogiikassa chatbox.update()).
-                            # Jos haluat heti passivoida -> player_turn=False
-                            # (Tehdään niin)
+                            # passivoidaan itsemme, lopullinen vuoronvaihto
+                            # hoituu RESULT/ SWITCHTURN -viesteillä
                             player_turn = False
 
             elif state == WIN_SCREEN or state == LOSE_SCREEN:
-                # Ei toiminnallisuutta, peli päättynyt
                 pass
 
         # Piirto
@@ -725,8 +871,14 @@ def main():
 
         pygame.display.flip()
 
+    # Suljetaan
+    discovery_thread_running = False
+    if discovery_thread and discovery_thread.is_alive():
+        discovery_thread.join()
+
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()
