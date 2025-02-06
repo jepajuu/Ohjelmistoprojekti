@@ -26,7 +26,7 @@ except:
 # -------------------------------------------------------
 LEVEYS = 1024
 KORKEUS = 768
-RUUDUN_KOKO = 30
+RUUDUN_KOKO = 30    # Korjattu: käytetään vain tätä muuttujaa
 RUUTUJA_X = 10
 RUUTUJA_Y = 10
 
@@ -685,6 +685,41 @@ def draw_lose_screen(screen):
     screen.blit(txt, (LEVEYS//2 - txt.get_width()//2, KORKEUS//2 - txt.get_height()//2))
 
 
+MAIN_MENU = 0
+HOST_SCREEN = 1
+JOIN_SCREEN = 2
+SHIP_PLACEMENT = 3
+GAME_STATE = 4
+WIN_SCREEN = 5
+LOSE_SCREEN = 6
+
+state = MAIN_MENU
+
+player_board = Board(RUUTUJA_X, RUUTUJA_Y)
+enemy_board = Board(RUUTUJA_X, RUUTUJA_Y)
+
+ship_lengths = [5,4,3,3,2]
+current_ship_index = 0
+current_ship = Ship(ship_lengths[current_ship_index], 0, 0, True)
+
+chatbox = ChatBox(800, 50, 200, 600)
+
+player_turn = False
+ships_placed = False
+enemy_ships_placed = False
+
+join_ip = ""
+
+last_shot_coords = None
+last_shot_result = None
+last_shot_timer = 0
+
+scan_button_rect = pygame.Rect(50, 200, 150, 40)
+host_list_rects = []
+
+is_host = None  # True, jos valittu HOST
+
+
 def main():
     global state, is_host, connected, join_ip
     global current_ship_index, current_ship
@@ -753,6 +788,7 @@ def main():
                         state = JOIN_SCREEN
 
                     elif toggle_rect.collidepoint((mx,my)):
+                        global is_dark_mode
                         is_dark_mode = not is_dark_mode
 
             elif state == HOST_SCREEN:
@@ -837,8 +873,8 @@ def main():
                 if player_turn:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         mx, my = event.pos
-                        bx = (mx - 400)//RUUTUJA_KOKO
-                        by = (my - 100)//RUUTUJA_KOKO
+                        bx = (mx - 400)//RUUDUN_KOKO
+                        by = (my - 100)//RUUDUN_KOKO
                         if 0<=bx<RUUTUJA_X and 0<=by<RUUTUJA_Y:
                             # Soitetaan ääni
                             if bomb_sound:
@@ -871,7 +907,6 @@ def main():
 
         pygame.display.flip()
 
-    # Suljetaan
     discovery_thread_running = False
     if discovery_thread and discovery_thread.is_alive():
         discovery_thread.join()
