@@ -54,26 +54,30 @@ def draw_grid(x_offset, y_offset, board, show_ships=True):
 def place_ships():
     return [[0] * GRID_SIZE for _ in range(GRID_SIZE)]
 
-def start_server():
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(("0.0.0.0", 5555))
-    server.listen(1)
-    ip_address = socket.gethostbyname(socket.gethostname())
-    print(f"Peli käynnistetty osoitteessa: {ip_address}:5555")
-    conn, addr = server.accept()
-    print(f"Yhteys muodostettu: {addr}")
-    return conn
-
-def connect_to_server(ip):
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.settimeout(5)
-    client.connect((ip, 5555))
-    print("Yhdistetty palvelimeen")
-    return client
+def input_box():
+    user_text = ""
+    input_active = True
+    while input_active:
+        screen.fill(current_mode['BG'])
+        draw_text("Syötä palvelimen IP:", 400, 300, current_mode['TEXT'])
+        pygame.draw.rect(screen, current_mode['TEXT'], (400, 350, 300, 40), 2)
+        text_surface = font.render(user_text, True, current_mode['TEXT'])
+        screen.blit(text_surface, (410, 360))
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    return user_text
+                elif event.key == pygame.K_BACKSPACE:
+                    user_text = user_text[:-1]
+                else:
+                    user_text += event.unicode
 
 def show_game(player_board, opponent_board, connection):
-    clock = pygame.time.Clock()
     running = True
     while running:
         screen.fill(current_mode['BG'])
@@ -82,7 +86,7 @@ def show_game(player_board, opponent_board, connection):
         draw_grid(100, 100, player_board, show_ships=True)
         draw_grid(100 + GRID_SIZE * CELL_SIZE + BOARD_GAP, 100, opponent_board, show_ships=False)
         pygame.display.flip()
-        clock.tick(30)  # Optimointi: rajoittaa päivitystiheyttä 30 FPS
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -112,15 +116,12 @@ def show_menu():
                 elif 400 <= mx <= 600 and 200 <= my <= 250:
                     player_board = place_ships()
                     opponent_board = place_ships()
-                    server_thread = threading.Thread(target=start_server, daemon=True)
-                    server_thread.start()
                     show_game(player_board, opponent_board, None)
                 elif 400 <= mx <= 600 and 300 <= my <= 350:
-                    ip = input("Syötä palvelimen IP: ")
+                    ip = input_box()
                     player_board = place_ships()
                     opponent_board = place_ships()
-                    connection = connect_to_server(ip)
-                    show_game(player_board, opponent_board, connection)
+                    show_game(player_board, opponent_board, None)
 
 if __name__ == "__main__":
     show_menu()
