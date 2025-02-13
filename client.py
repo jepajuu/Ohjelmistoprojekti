@@ -8,51 +8,43 @@ pygame.font.init()
 
 LEVEYS, KORKEUS = 800, 600
 
-# Use socket.io-client
+# Käytetään socket.io-clientia
 sio = socketio.Client()
 
-UDP_DISCOVERY_PORT = 5557  # discovery port for UDP broadcast
+UDP_DISCOVERY_PORT = 5557  # UDP-löytymispalvelu
 
 def discover_server(timeout=5):
-    """
-    Broadcasts a UDP discovery message and waits for a server response.
-    The server should respond with a known response message.
-    """
+    """Etsii palvelimen lähettämällä UDP-broadcastin."""
     discovery_message = b"DISCOVER_SERVER_REQUEST"
     expected_response = "DISCOVER_SERVER_RESPONSE"
     server_ip = None
-
-    # Create UDP socket for broadcast
+    
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     udp_sock.settimeout(timeout)
-
+    
     try:
-        # Send the discovery message to broadcast address
         udp_sock.sendto(discovery_message, ("<broadcast>", UDP_DISCOVERY_PORT))
-        # Wait for the server's response
         data, addr = udp_sock.recvfrom(1024)
         if data.decode() == expected_response:
             server_ip = addr[0]
-            print(f"Discovered server at IP: {server_ip}")
-        else:
-            print("Received unexpected response during discovery.")
+            print(f"Palvelin löytyi IP:stä {server_ip}")
     except socket.timeout:
-        print("Server discovery timed out.")
+        print("Palvelimen löytyminen aikakatkaistiin.")
     except Exception as e:
-        print("Error during discovery:", e)
+        print("Virhe palvelimen etsinnässä:", e)
     finally:
         udp_sock.close()
+    
     return server_ip
 
 def connect_to_server():
-    # Try discovery first
     discovered_ip = discover_server()
     if discovered_ip:
         server_ip = discovered_ip
     else:
-        # Fallback to manual configuration if discovery fails
-        server_ip = input("Enter server IP manually: ")
+        server_ip = input("Syötä palvelimen IP: ")
+    
     SERVER_PORT = 5555
     try:
         sio.connect(f"http://{server_ip}:{SERVER_PORT}")
@@ -60,46 +52,65 @@ def connect_to_server():
     except Exception as e:
         print("Virhe yhdistettäessä palvelimeen:", e)
 
-@sio.on('player_joined')
-def on_player_joined(data):
-    print(f"Pelaaja liittyi: {data['ip']}")
-
-@sio.on('player_left')
-def on_player_left(data):
-    print(f"Pelaaja poistui: {data['ip']}")
-
-@sio.on('receive_message')
-def on_receive_message(data):
-    print(f"Saapunut viesti: {data['message']}")
-
-def send_message(msg):
-    sio.emit('send_message', {"message": msg})
-
 # Pygame UI
-fontti = pygame.font.SysFont(None, 24)
+fontti = pygame.font.SysFont(None, 50)
 screen = pygame.display.set_mode((LEVEYS, KORKEUS))
-pygame.display.set_caption("Socket.IO Peli")
+pygame.display.set_caption("Laivanupotus")
 
-def draw_ui():
-    screen.fill((30, 30, 30))
-    text = fontti.render("Paina ENTER lähettääksesi viestin!", True, (220, 220, 220))
-    screen.blit(text, (50, 50))
+host_rect = pygame.Rect(LEVEYS // 2 - 160, 300, 150, 50)
+join_rect = pygame.Rect(LEVEYS // 2 + 10, 300, 150, 50)
+
+def draw_start_screen():
+    screen.fill((0, 0, 0))
+    otsikko = fontti.render("Laivanupotus peli :D", True, (255, 255, 255))
+    pygame.draw.rect(screen, (50, 50, 200), host_rect)
+    pygame.draw.rect(screen, (50, 200, 50), join_rect)
+    
+    host_text = fontti.render("HOST", True, (255, 255, 255))
+    join_text = fontti.render("JOIN", True, (255, 255, 255))
+    
+    screen.blit(otsikko, (LEVEYS // 2 - otsikko.get_width() // 2, 150))
+    screen.blit(host_text, (host_rect.x + 35, host_rect.y + 10))
+    screen.blit(join_text, (join_rect.x + 35, join_rect.y + 10))
+    
     pygame.display.flip()
 
 def main():
-    connect_to_server()
     clock = pygame.time.Clock()
     running = True
-
+    start_screen = True
+    
     while running:
         clock.tick(30)
+        
+        if start_screen:
+            draw_start_screen()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_h:  # Host
+                        print("Hosting game...")
+                        start_screen = False  # Tässä voisi alkaa hostauksen käsittely
+                    elif event.key == pygame.K_j:  # Join
+                        print("Joining game...")
+                        connect_to_server()
+                        start_screen = False  # Tässä voisi alkaa liittymisen käsittely
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if host_rect.collidepoint(event.pos):
+                        print("Hosting game...")
+                        start_screen = False
+                    elif join_rect.collidepoint(event.pos):
+                        print("Joining game...")
+                        connect_to_server()
+                        start_screen = False
+        else:
+            screen.fill((0, 50, 0))
+            pygame.display.flip()
+            
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    send_message("Pelaaja lähetti viestin!")
-        draw_ui()
 
     sio.disconnect()
     pygame.quit()
