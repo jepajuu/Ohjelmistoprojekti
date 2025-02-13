@@ -1,5 +1,6 @@
 import pygame
 import sys
+import socket
 import socketio
 
 pygame.init()
@@ -7,11 +8,24 @@ pygame.font.init()
 
 LEVEYS, KORKEUS = 800, 600
 
-# Käytetään socket.io-clientiä
+# Use socket.io-client
 sio = socketio.Client()
 
-# Yhdistetään serveriin
-SERVER_IP = "127.0.0.1"  # Vaihda palvelimen IP:hen
+def get_local_ip():
+    """Automatically grab the local IP address."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Connect to an external server to determine the local IP.
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return ip
+
+# Automatically set SERVER_IP to this machine's IP
+SERVER_IP = get_local_ip()
 SERVER_PORT = 5555
 
 def connect_to_server():
@@ -60,7 +74,6 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     send_message("Pelaaja lähetti viestin!")
-
         draw_ui()
 
     sio.disconnect()
