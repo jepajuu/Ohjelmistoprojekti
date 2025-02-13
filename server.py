@@ -1,9 +1,10 @@
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
-import eventlet
+import eventlet  # Optional: you can remove this import if not using its features
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Switch to threading async mode for better compatibility on Windows
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 players = {}  # Tallentaa pelaajien yhteydet
 
