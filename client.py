@@ -11,26 +11,51 @@ LEVEYS, KORKEUS = 800, 600
 # Use socket.io-client
 sio = socketio.Client()
 
-def get_local_ip():
-    """Automatically grab the local IP address."""
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # Connect to an external server to determine the local IP.
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-    except Exception:
-        ip = "127.0.0.1"
-    finally:
-        s.close()
-    return ip
+UDP_DISCOVERY_PORT = 5557  # discovery port for UDP broadcast
 
-# Automatically set SERVER_IP to this machine's IP
-SERVER_IP = get_local_ip()
-SERVER_PORT = 5555
+def discover_server(timeout=5):
+    """
+    Broadcasts a UDP discovery message and waits for a server response.
+    The server should respond with a known response message.
+    """
+    discovery_message = b"DISCOVER_SERVER_REQUEST"
+    expected_response = "DISCOVER_SERVER_RESPONSE"
+    server_ip = None
+
+    # Create UDP socket for broadcast
+    udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    udp_sock.settimeout(timeout)
+
+    try:
+        # Send the discovery message to broadcast address
+        udp_sock.sendto(discovery_message, ("<broadcast>", UDP_DISCOVERY_PORT))
+        # Wait for the server's response
+        data, addr = udp_sock.recvfrom(1024)
+        if data.decode() == expected_response:
+            server_ip = addr[0]
+            print(f"Discovered server at IP: {server_ip}")
+        else:
+            print("Received unexpected response during discovery.")
+    except socket.timeout:
+        print("Server discovery timed out.")
+    except Exception as e:
+        print("Error during discovery:", e)
+    finally:
+        udp_sock.close()
+    return server_ip
 
 def connect_to_server():
+    # Try discovery first
+    discovered_ip = discover_server()
+    if discovered_ip:
+        server_ip = discovered_ip
+    else:
+        # Fallback to manual configuration if discovery fails
+        server_ip = input("Enter server IP manually: ")
+    SERVER_PORT = 5555
     try:
-        sio.connect(f"http://{SERVER_IP}:{SERVER_PORT}")
+        sio.connect(f"http://{server_ip}:{SERVER_PORT}")
         print("Yhteys palvelimeen onnistui!")
     except Exception as e:
         print("Virhe yhdistettäessä palvelimeen:", e)

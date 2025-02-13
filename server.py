@@ -2,6 +2,7 @@ from flask import Flask, request
 from flask_socketio import SocketIO, emit
 import eventlet  # Optional: you can remove this import if not using its features
 import socket
+import threading
 
 app = Flask(__name__)
 # Switch to threading async mode for better compatibility on Windows
@@ -44,7 +45,33 @@ def get_my_ip():
         s.close()
     return ip
 
+# UDP discovery constants
+UDP_DISCOVERY_PORT = 5557
+DISCOVERY_REQUEST = "DISCOVER_SERVER_REQUEST"
+DISCOVERY_RESPONSE = "DISCOVER_SERVER_RESPONSE"
+
+def udp_discovery_listener():
+    """Listens for UDP discovery requests and responds with the discovery response."""
+    udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        udp_sock.bind(("", UDP_DISCOVERY_PORT))
+        print(f"UDP discovery listener started on port {UDP_DISCOVERY_PORT}")
+        while True:
+            data, addr = udp_sock.recvfrom(1024)
+            if data.decode() == DISCOVERY_REQUEST:
+                udp_sock.sendto(DISCOVERY_RESPONSE.encode(), addr)
+    except Exception as e:
+        print("UDP discovery error:", e)
+    finally:
+        udp_sock.close()
+
 if __name__ == "__main__":
     my_ip = get_my_ip()
     print(f"Server is running on IP: {my_ip}")
+    
+    # Start UDP discovery listener in a background thread
+    discovery_thread = threading.Thread(target=udp_discovery_listener, daemon=True)
+    discovery_thread.start()
+    
     socketio.run(app, host="0.0.0.0", port=5555)
