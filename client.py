@@ -3,6 +3,7 @@ import sys
 import socket
 import socketio
 import time
+import copy#tämä tarvitaan että voi tehdä sisäkkäisille listoille copyn
 
 pygame.init()
 pygame.font.init()
@@ -68,9 +69,18 @@ laivat=[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],
 [0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],
 [0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]]
 #arvot voi olla 0-9   [A-J, 1-10]
-lentotukialus=[[2,2],[2,3],[2,4],[2,5],[2,6]]#x y koordinaatit alustetaan -1
-taistelulaiva=[[9,0],[9,1],[9,2],[9,3]]#alustus -1 kun asetettu != -1
-risteilija1=[[9,9],[8,9],[7,9]]#3 ruutua risteilija
+lentotukialus=[[-1,-1],[2,3],[2,4],[2,5],[2,6]]#x y koordinaatit alustetaan -1
+lentotukialusCopy=[[-1,-1],[2,3],[2,4],[2,5],[2,6]]#kopiot Joita ei piirretä 2d listaan
+taistelulaiva=[[-1,-1],[9,1],[9,2],[9,3]]#alustus -1 kun asetettu != -1
+taistelulaivaCopy=[[-1,-1],[9,1],[9,2],[9,3]]
+risteilija1=[[-1,-1],[1,2],[1,3]]#3 ruutua risteilija
+risteilija1Copy=[[-1,-1],[1,2],[1,3]]
+risteilija2=[[-1,-1],[1,6],[2,6]]#3
+risteilija2Copy=[[-1,-1],[1,6],[2,6]]#3
+havittaja=[[-1,-1],[-1,-1]]
+havittajaCopy=[[-1,-1],[-1,-1]]
+sukellusvene=[[-1,-1]]
+sukellusveneCopy=[[-1,-1]]
 
 def piirra_ruudukko():
     screen.fill((255, 255, 255))#tyhjää ikkuna
@@ -85,6 +95,11 @@ def piirra_ruudukko():
     pygame.display.flip()
 
 def piirra_laivat():#myös asettaa laivat 2d listaan
+    global laivat
+    for i in range(len(laivat)):#asettaa nollaksi laivat2d
+        for r in range(len(laivat[i])):
+            laivat[i][r]=0
+
     if(lentotukialus[0][0] != -1):
         for i in range(len(lentotukialus)):#kiertää lentotukialuksen pituuden verran i=0,1,2,3,4
             #ja asettaa laivat 2d taulukon solut ykköseksi joissa lentotukialus on
@@ -99,9 +114,24 @@ def piirra_laivat():#myös asettaa laivat 2d listaan
         for i in range(len(risteilija1)):#kiertää lentotukialuksen pituuden verran i=0,1,2,3,4
             #ja asettaa laivat 2d taulukon solut ykköseksi joissa lentotukialus on
             laivat[risteilija1[i][0]][risteilija1[i][1]]=1 #lentotukialuksen[i][0] on x ja [i][1] on y
+
+    if(risteilija2[0][0] != -1):
+        for i in range(len(risteilija2)):#kiertää lentotukialuksen pituuden verran i=0,1,2,3,4
+            #ja asettaa laivat 2d taulukon solut ykköseksi joissa lentotukialus on
+            laivat[risteilija2[i][0]][risteilija2[i][1]]=1 #lentotukialuksen[i][0] on x ja [i][1] on y
     
+    if(havittaja[0][0] != -1):
+        for i in range(len(havittaja)):#kiertää lentotukialuksen pituuden verran i=0,1,2,3,4
+            #ja asettaa laivat 2d taulukon solut ykköseksi joissa lentotukialus on
+            laivat[havittaja[i][0]][havittaja[i][1]]=1 #lentotukialuksen[i][0] on x ja [i][1] on y
+
+    if(sukellusvene[0][0] != -1):
+        for i in range(len(sukellusvene)):#kiertää lentotukialuksen pituuden verran i=0,1,2,3,4
+            #ja asettaa laivat 2d taulukon solut ykköseksi joissa lentotukialus on
+            laivat[sukellusvene[i][0]][sukellusvene[i][1]]=1 #lentotukialuksen[i][0] on x ja [i][1] on y
+
     for x in range(len(laivat)):#piirtää laivat laivat 2d taulukosta jos 1
-        print(x)
+        #print(x)
         for y in range(len(laivat[x])):
             if(laivat[x][y]==1):
                 cell_rect = pygame.Rect((((LEVEYS/11)*x)+(LEVEYS/11)), (((KORKEUS/11)*y)+(KORKEUS/11)), (LEVEYS/10.9), (KORKEUS/10.9))#mitta vasemmasta reunasta,ylhäältä,leveys,korkeus
@@ -112,28 +142,222 @@ def piirra_laivat():#myös asettaa laivat 2d listaan
 def aseta_laivat():
     piirra_ruudukko()
     piirra_laivat()
-    time.sleep(5)
-    #tähän laivojen asetus 
-    #aseta lentotukialus 5ruutua
-    #while True:
-    #    for event in pygame.event.get():
-    #        if event.type == pygame.KEYDOWN:
-    #            print(event.key)
-    #            time.sleep(1)
-            #
-            #
-            #
-            #
-            #
-            #
-            #
+   
+    #for i in range(len(taistelulaiva)):
+    #    taistelulaivaCopy[i][0]=taistelulaiva[i][0]
+    global taistelulaiva
+    global taistelulaivaCopy
+    taistelulaivaCopy=copy.deepcopy(taistelulaiva)#deepcopy kopioi sisäkkäisetkin listat
+    taistelulaiva[0][0]=-1
+    taistelulaiva=aseta_yksi_laiva(taistelulaivaCopy)
+    piirra_ruudukko()
+    piirra_laivat()
 
+    global lentotukialus
+    global lentotukialusCopy
+    lentotukialusCopy=copy.deepcopy(lentotukialus)
+    lentotukialus[0][0]=-1
+    lentotukialus=aseta_yksi_laiva(lentotukialusCopy)
+    piirra_ruudukko()
+    piirra_laivat()
 
-            
+    global risteilija1
+    global risteilija1Copy
+    risteilija1Copy=copy.deepcopy(risteilija1)
+    risteilija1[0][0]=-1
+    risteilija1=aseta_yksi_laiva(risteilija1Copy)
+    piirra_ruudukko()
+    piirra_laivat()
 
+    global risteilija2
+    global risteilija2Copy
+    risteilija2Copy=copy.deepcopy(risteilija2)
+    risteilija2[0][0]=-1
+    risteilija2=aseta_yksi_laiva(risteilija2Copy)
+    piirra_ruudukko()
+    piirra_laivat()
+
+    global havittaja
+    global havittajaCopy
+    havittajaCopy=copy.deepcopy(havittaja)
+    havittaja[0][0]=-1
+    havittaja=aseta_yksi_laiva(havittajaCopy)
+    piirra_ruudukko()
+    piirra_laivat()
+
+    global sukellusvene
+    global sukellusveneCopy
+    sukellusveneCopy=copy.deepcopy(sukellusvene)
+    sukellusvene[0][0]=-1
+    sukellusvene=aseta_yksi_laiva(sukellusveneCopy)
+    piirra_ruudukko()
+    piirra_laivat()
+ 
     pygame.display.flip()
     time.sleep(2)
+
+#lähinnä aseta yksi laiva funktiota varten
+#piirtää laivan mutta ei lisää mitään laivat 2dListaan
+def piirra_yksi_laiva(laiva_yksi,vari_yksi):#laivan koordinaatit, RGB vari lista
+    for i in range(len(laiva_yksi)):
+        cell_rect = pygame.Rect((((LEVEYS/11)*laiva_yksi[i][0])+(LEVEYS/11)), (((KORKEUS/11)*laiva_yksi[i][1])+(KORKEUS/11)), (LEVEYS/10.9), (KORKEUS/10.9))#mitta vasemmasta reunasta,ylhäältä,leveys,korkeus
+        pygame.draw.rect(screen, (vari_yksi[0],vari_yksi[1], vari_yksi[2]), cell_rect)
+        pygame.display.flip()
+
+#asettaa laivan eri näppäimillä
+#up,down,left,right, r kierto, y kyllä
+def aseta_yksi_laiva(laivaTemp):#saa laiva listan ja jos muuttaa laiva parametria muuttuu myös alkuperäinen joka on funktiokutsussa
+    vari_asetus=[33,55,66]
     
+    if laivaTemp[0][0]==-1:#jos laivaa ei viela asetettu laitetaan vasenpaan yla reunaan A1 ruutuun
+        for i in range(len(laivaTemp)):
+            laivaTemp[i][0]=0
+            laivaTemp[i][1]=i
+
+    piirra_ruudukko()
+    piirra_laivat()
+    for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
+        if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
+            vari_asetus=[200,9,9]#jos mika tahansa paallekkain värjätään punaiseksi
+    piirra_yksi_laiva(laivaTemp,vari_asetus)
+    print("aseta laiva")
+
+    asetus_Kesken=True
+    while asetus_Kesken:#testataan mitä nappia painetaan laivojen sijoituksen aikana
+        time.sleep(0.3)
+        #print("while")
+        for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sio.disconnect()
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_DOWN:  # Host
+                        print("KeyDown...")
+                        if ((laivaTemp[0][1]<9) and (laivaTemp[-1][1]<9)):
+                            for i in range(len(laivaTemp)):
+                                laivaTemp[i][1]+=1
+                        #
+                        vari_asetus=[33,55,66]
+                        for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
+                            if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
+                                vari_asetus=[200,9,9]
+                        #
+                        piirra_ruudukko()
+                        piirra_laivat()
+                        piirra_yksi_laiva(laivaTemp,vari_asetus)
+
+                    elif event.key == pygame.K_UP:  # Join
+                        print("Up")
+                        if ((laivaTemp[0][1]>0) and (laivaTemp[-1][1]>0)):
+                            for i in range(len(laivaTemp)):
+                                laivaTemp[i][1]-=1
+                        #
+                        vari_asetus=[33,55,66]
+                        for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
+                            if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
+                                vari_asetus=[200,9,9]
+                        #
+                        piirra_ruudukko()
+                        piirra_laivat()
+                        piirra_yksi_laiva(laivaTemp,vari_asetus)
+                    elif event.key == pygame.K_LEFT:  # Join
+                        print("Left")
+                        if ((laivaTemp[0][0]>0) and (laivaTemp[-1][0]>0)):
+                            for i in range(len(laivaTemp)):
+                                laivaTemp[i][0]-=1
+                        #
+                        vari_asetus=[33,55,66]
+                        for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
+                            if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
+                                vari_asetus=[200,9,9]
+                        #
+                        piirra_ruudukko()
+                        piirra_laivat()
+                        piirra_yksi_laiva(laivaTemp,vari_asetus)
+                    elif event.key == pygame.K_RIGHT:  # Join
+                        print("Right")
+                        if ((laivaTemp[0][0]<9) and (laivaTemp[-1][0]<9)):
+                            for i in range(len(laivaTemp)):
+                                laivaTemp[i][0]+=1
+                        #
+                        vari_asetus=[33,55,66]
+                        for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
+                            if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
+                                vari_asetus=[200,9,9]
+                        #
+                        piirra_ruudukko()
+                        piirra_laivat()
+                        piirra_yksi_laiva(laivaTemp,vari_asetus)
+                    elif event.key == pygame.K_r:  # Join
+                        print("rotate")
+                        if (laivaTemp[0][0]==laivaTemp[-1][0]):#tosi jos pystytasossa
+                            #
+                            print("pystyssa")
+                            lenLaiva=len(laivaTemp)
+                            for i in range((len(laivaTemp))):
+                                laivaTemp[i][1]=laivaTemp[0][1]
+                                laivaTemp[i][0]=laivaTemp[0][0]+i
+                            #nyt on vaakatasossa
+                            if (laivaTemp[-1][0]>9):#tarkastaa menikö yli kentästä
+                                overflow_temp=9-laivaTemp[-1][0]
+                                for i in range(len(laivaTemp)):#
+                                    laivaTemp[i][0]=laivaTemp[i][0]+overflow_temp
+                            
+                            vari_asetus=[33,55,66]
+                            for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
+                                if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
+                                    vari_asetus=[200,9,9]
+                            #
+                            piirra_ruudukko()
+                            piirra_laivat()
+                            piirra_yksi_laiva(laivaTemp,vari_asetus)
+                            #
+                            #
+                            continue#pitää hypätä for loopin alkuun koska laiva käännetty ja seuraava if tulisi Tosi
+
+                            #
+                        if (laivaTemp[0][1]==laivaTemp[-1][1]):#tosi jos vaakatasossa
+                            #
+                            print("Vaakatasossa")
+                            lenLaiva=len(laivaTemp)
+                            for i in range((len(laivaTemp))):
+                                laivaTemp[i][0]=laivaTemp[0][0]
+                                laivaTemp[i][1]=laivaTemp[0][1]+i
+                            #
+                            if (laivaTemp[-1][1] > 9):#tarkastaa menikö yli
+                                print("on yli")
+                                overflow_temp=9-laivaTemp[-1][1]
+                                print(overflow_temp)
+                                for i in range(len(laivaTemp)):#
+                                    laivaTemp[i][1]=laivaTemp[i][1]+overflow_temp
+
+                            vari_asetus=[33,55,66]
+                            for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
+                                if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
+                                    vari_asetus=[200,9,9]
+                            
+                            piirra_ruudukko()
+                            piirra_laivat()
+                            piirra_yksi_laiva(laivaTemp,vari_asetus)
+                            
+                    elif event.key == pygame.K_y:  # 
+                        print("Ok Tähän")
+                        VoiAsettaa=True
+                        for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
+                            if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
+                                VoiAsettaa=False
+                        if VoiAsettaa:
+                            
+                            asetus_Kesken=False#keskeyttää while loopin
+                            break#keskeyttää for loopin
+                        
+    return laivaTemp#tämä palautetaan jos y painettu eikä ole päällekkäin
+                            
+                            
+
+
+
 
 def draw_start_screen():
     screen.fill((0, 0, 0))
