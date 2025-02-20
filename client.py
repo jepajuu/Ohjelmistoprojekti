@@ -395,6 +395,8 @@ def draw_start_screen():
     
     pygame.display.flip()
 
+game_state = "start"  # Peli alkaa start-näkymästä
+
 def main():
     global game_state
     clock = pygame.time.Clock()
