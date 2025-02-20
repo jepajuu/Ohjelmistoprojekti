@@ -4,6 +4,8 @@ import eventlet  # Optional: you can remove this import if not using its feature
 import socket
 import threading
 
+maks_pelaajat = 2
+
 app = Flask(__name__)
 # Switch to threading async mode for better compatibility on Windows
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
@@ -16,10 +18,19 @@ def index():
 
 @socketio.on('connect')
 def handle_connect():
+    sid = request.sid
     ip = request.remote_addr
-    print(f"Uusi pelaaja liittyi: {ip}")
-    players[request.sid] = ip
-    emit('player_joined', {"ip": ip}, broadcast=True)
+    print(f"Uusi pelaaja liittyi: {ip}, ID: {sid}")
+
+    players[sid] = ip  # Lisätään host myös pelaajiin
+
+    print(f"Pelaajia liittynyt yhteensä: {len(players)}")
+
+    emit('player_joined', {"players_connected": len(players)}, broadcast=True)
+
+    if len(players) == maks_pelaajat:
+        print("Peli alkaa, molemmat pelaajat ovat liittyneet")
+        emit('game_start', {"message": "Peli alkaa"}, broadcast=True)
 
 @socketio.on('disconnect')
 def handle_disconnect():

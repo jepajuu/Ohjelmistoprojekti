@@ -41,6 +41,24 @@ def discover_server(timeout=5):
     
     return server_ip
 
+@sio.on("player_joined")
+def on_player_joined(data):
+    global players_ready, game_state
+    players_ready = data["players_connected"]
+    print(f"Pelaajia liittynyt: {players_ready}")
+
+    if players_ready >= 2:
+        game_state = "setup_ships"  # vaihtaa laivojen asetus tilaan
+        aseta_laivat()
+
+@sio.on("game_start")
+def on_game_start(data):
+    global game_state
+    print(data["message"])  # tulostaa Peli alkaa
+
+    game_state = "setup_ships"  # siirtyy laivojen asettamiseen
+    print("Pelimuoto setup_ships")
+
 def connect_to_server():
     discovered_ip = discover_server()
     if discovered_ip:
@@ -61,7 +79,7 @@ screen = pygame.display.set_mode((LEVEYS, KORKEUS))
 pygame.display.set_caption("Laivanupotus")
 
 host_rect = pygame.Rect(LEVEYS // 2 - 160, 300, 150, 50)#mitta vasemmasta reunasta,ylhäältä,leveys,korkeus
-join_rect = pygame.Rect(LEVEYS // 2 + 90, 300, 150, 50)
+join_rect = pygame.Rect(LEVEYS // 2 + 5, 300, 150, 50)
 laivojen_asetus_rect = pygame.Rect(((LEVEYS/2)-150), 400, 300, 50)
 
 #2d lista 10*10 laivoille  pelikenttä 0=ei laivaa 1=on laiva
@@ -377,7 +395,10 @@ def draw_start_screen():
     
     pygame.display.flip()
 
+game_state = "start"  # Peli alkaa start-näkymästä
+
 def main():
+    global game_state
     clock = pygame.time.Clock()
     running = True
     start_screen = True
@@ -393,6 +414,7 @@ def main():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_h:  # Host
                         print("Hosting game...")
+                        connect_to_server()  # Host liittyy serveriin
                         start_screen = False  # Tässä voisi alkaa hostauksen käsittely
                     elif event.key == pygame.K_j:  # Join
                         print("Joining game...")
@@ -406,6 +428,7 @@ def main():
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if host_rect.collidepoint(event.pos):
                         print("Hosting game...")
+                        connect_to_server()  # Host liittyy serveriin
                         start_screen = False
                     elif join_rect.collidepoint(event.pos):
                         print("Joining game...")
@@ -415,8 +438,15 @@ def main():
                         print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
-        else:
-            screen.fill((0, 50, 0))
+
+        elif game_state == "setup_ships": 
+            print("Siirrytään laivojen asetteluun...")  # Debuggausta varten
+            screen.fill((255, 255, 255))  # Tyhjennetään näyttö, jotta ruudukko piirtyy
+            aseta_laivat()  # Nyt kutsutaan aseta_laivat(), kun peli on setup_ships-tilassa
+            game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
+
+        elif game_state == "playing":
+            screen.fill((0, 50, 0))  # Pelialueen piirto (korvaa omalla logiikalla)
             pygame.display.flip()
             
         for event in pygame.event.get():
@@ -429,3 +459,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
