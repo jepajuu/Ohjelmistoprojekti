@@ -43,6 +43,20 @@ def handle_message(data):
     print(f"Vastaanotettu viesti: {data['message']}")
     emit('receive_message', data, broadcast=True)
 
+@socketio.on('bomb_shot')
+def handle_bomb_shot(data):
+    """
+    Receives bomb shot coordinates from a client and broadcasts the shot to the other clients.
+    Additional game logic (e.g., hit detection) can be added here.
+    """
+    x = data.get("x")
+    y = data.get("y")
+    print(f"Received bomb shot at ({x}, {y}) from {request.sid}")
+    
+    # Optionally, process shot logic and calculate hit result.
+    # For now, we simply broadcast the bomb shot event.
+    emit('bomb_shot', data, broadcast=True)
+
 def get_my_ip():
     """Automatically grab the local IP address."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
