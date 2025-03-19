@@ -482,9 +482,8 @@ def main():
 
         elif game_state == "playing":
             screen.fill((0, 50, 0))
-            piirra_ruudukko()       # Jos haluat piirtää vasta-ampumisen ruudukon
-            piirra_vihollisen_ruudukko()
-            # piirra_laivat()       # Tarpeen mukaan, jos haluat näyttää omia laivoja
+            piirra_ruudukko()       # Piirretään oma ruudukko
+            piirra_vihollisen_ruudukko()  # Piirretään vihollisen ruudukko
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -493,16 +492,14 @@ def main():
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_x, mouse_y = event.pos
                     # Laske ruudun koordinaatit klikkauksen perusteella
-                    # HUOM: sinun pitää sovittaa tämä ruudukon piirtotapaasi!
-                    # Alla vain esimerkki:
-                    # TÄÄ EI VARMAAN TOIMI MUT TESTAILLAAN SITTE KU PÄÄSTÄÄN TÄHÄN VAIHEESEEN
-                    grid_x = int((mouse_x - (LEVEYS/2)) // (LEVEYS/22))
-                    grid_y = int(mouse_y  // (KORKEUS/11))
+                    if mouse_x > LEVEYS / 2:  # Tarkista, että klikkaus on vihollisen ruudukossa
+                        grid_x = int((mouse_x - LEVEYS / 2) // (LEVEYS / 22))
+                        grid_y = int(mouse_y // (KORKEUS / 11))
 
-                    if 0 <= grid_x < 10 and 0 <= grid_y < 10:
-                        print(f"Ampuminen ruutuun: ({grid_x}, {grid_y})")
-                        # Lähetä serverille
-                        sio.emit('bomb_shot', {"x": grid_x, "y": grid_y})
+                        if 0 <= grid_x < 10 and 0 <= grid_y < 10:
+                            print(f"Ampuminen ruutuun: ({grid_x}, {grid_y})")
+                            # Lähetä serverille
+                            sio.emit('bomb_shot', {"x": grid_x, "y": grid_y})
 
     pygame.display.flip()
 
@@ -512,4 +509,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
