@@ -59,30 +59,6 @@ def on_game_start(data):
     game_state = "setup_ships"  # siirtyy laivojen asettamiseen
     print("Pelimuoto setup_ships")
 
-@sio.on('bomb_shot')
-def on_bomb_shot(data):
-    """
-    Vastaanottaa toisen pelaajan ampuman pommin koordinaatit serveriltä.
-    """
-    x = data.get("x")
-    y = data.get("y")
-    print(f"Vastustaja ampui ruutuun ({x}, {y})!")
-    # Voit tässä merkitä osuman/hudin omassa ruudukossasi
-    # Esim. if laivat[x][y] == 1: -> osui laivaan
-
-@sio.on('shot_result')
-def on_shot_result(data):
-    """
-    Vastaanottaa tiedon oman laukauksesi tuloksesta (osuma/huti) serveriltä,
-    jos haluat sellaisen logiikan.
-    """
-    x = data.get("x")
-    y = data.get("y")
-    hit = data.get("hit", False)  # True/False
-    print(f"Pommituksen tulos: Ruutu ({x},{y}), osuma: {hit}")
-    # Tähän grafiikkaa
-
-
 def connect_to_server():
     discovered_ip = discover_server()
     if discovered_ip:
@@ -470,29 +446,12 @@ def main():
             game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
 
         elif game_state == "playing":
-            screen.fill((0, 50, 0))
-            piirra_ruudukko()       # Jos haluat piirtää vasta-ampumisen ruudukon
-            # piirra_laivat()       # Tarpeen mukaan, jos haluat näyttää omia laivoja
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_x, mouse_y = event.pos
-                    # Laske ruudun koordinaatit klikkauksen perusteella
-                    # HUOM: sinun pitää sovittaa tämä ruudukon piirtotapaasi!
-                    # Alla vain esimerkki:
-                    # TÄÄ EI VARMAAN TOIMI MUT TESTAILLAAN SITTE KU PÄÄSTÄÄN TÄHÄN VAIHEESEEN
-                    grid_x = int((mouse_x - (LEVEYS/11)) // (LEVEYS/11))
-                    grid_y = int((mouse_y - (KORKEUS/11)) // (KORKEUS/11))
-
-                    if 0 <= grid_x < 10 and 0 <= grid_y < 10:
-                        print(f"Ampuminen ruutuun: ({grid_x}, {grid_y})")
-                        # Lähetä serverille
-                        sio.emit('bomb_shot', {"x": grid_x, "y": grid_y})
-
-    pygame.display.flip()
+            screen.fill((0, 50, 0))  # Pelialueen piirto (korvaa omalla logiikalla)
+            pygame.display.flip()
+            
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
     sio.disconnect()
     pygame.quit()
