@@ -372,55 +372,55 @@ def aseta_yksi_laiva(laivaTemp):#saa laiva listan ja jos muuttaa laiva parametri
                         
     return laivaTemp#tämä palautetaan jos y painettu eikä ole päällekkäin
                             
-def piirra_pelitilanne():
-    # Määritellään pelilaudan koko (olettaen neliö, esim. 400x400)
-    board_size = 400
-    # Keskitetään ruudukot pystysuunnassa
-    offset_y = (KORKEUS - board_size) / 2
-    cell_size = board_size / 10  # solun koko 10 ruudun pituudelta
+def piirra_kaksi_ruudukkoa():
+    # Määritellään vasemman (pelaajan) ruudun mitat
+    left_board_width = LEVEYS / 2      # 400 pikseliä, jos LEVEYS on 800
+    left_board_height = KORKEUS         # 600 pikseliä
+    left_cell_width = left_board_width / 11   # Sama jako kuin alkuperäisessä piirrossa
+    left_cell_height = left_board_height / 11
 
-    # Täytetään taustaksi vihreä sävy
-    screen.fill((0, 50, 0))
+    # Tyhjennetään näyttö
+    screen.fill((255, 255, 255))
 
-    # Piirretään pelaajan lauta vasempaan puoliskoon (x: 0 -> board_size)
+    # Piirretään vasen ruudukko (pelaajan lauta)
     for i in range(11):
-        # Pystyviivat
-        start_pos = (i * cell_size, offset_y)
-        end_pos = (i * cell_size, offset_y + board_size)
-        pygame.draw.line(screen, (255, 255, 255), start_pos, end_pos, 2)
-        # Vaakaviivat
-        start_pos = (0, offset_y + i * cell_size)
-        end_pos = (board_size, offset_y + i * cell_size)
-        pygame.draw.line(screen, (255, 255, 255), start_pos, end_pos, 2)
-        
-        # Lisätään koordinaattien numerot ja kirjaimet (valinnainen)
-        if i > 0 and i < 11:
+        # Pystylinjat
+        pygame.draw.line(screen, (0, 0, 0),
+                         (left_cell_width * i, 0),
+                         (left_cell_width * i, left_board_height))
+        # Vaakalinjat
+        pygame.draw.line(screen, (0, 0, 0),
+                         (0, left_cell_height * i),
+                         (left_board_width, left_cell_height * i))
+        if i > 0:
             # Numerot vasempaan reunaan
-            num_text = fontti.render(str(i), True, (255, 255, 255))
-            screen.blit(num_text, (5, offset_y + (i - 0.5) * cell_size))
+            number_text = fontti.render(str(i), True, (0, 0, 0))
+            screen.blit(number_text, (left_cell_width * 0.1, left_cell_height * i + 5))
             # Kirjaimet yläreunaan
-            letter_text = fontti.render(chr(64 + i), True, (255, 255, 255))
-            screen.blit(letter_text, ((i - 0.5) * cell_size, offset_y + 5))
-    
-    # Piirretään vihollisen lauta oikeaan puoliskoon (x: board_size -> board_size*2)
+            letter_text = fontti.render(chr(i + 64), True, (0, 0, 0))
+            screen.blit(letter_text, (left_cell_width * i + 5, left_cell_height * 0.1))
+
+    # Piirretään oikea ruudukko (vihollisen lauta)
+    right_board_offset = left_board_width  # Ruudun oikea puolisko alkaa tässä
     for i in range(11):
-        # Pystyviivat: siirretään laudan alku board_size:lla oikealle
-        start_pos = (board_size + i * cell_size, offset_y)
-        end_pos = (board_size + i * cell_size, offset_y + board_size)
-        pygame.draw.line(screen, (255, 255, 255), start_pos, end_pos, 2)
-        # Vaakaviivat
-        start_pos = (board_size, offset_y + i * cell_size)
-        end_pos = (board_size + board_size, offset_y + i * cell_size)
-        pygame.draw.line(screen, (255, 255, 255), start_pos, end_pos, 2)
-        
-        # Lisätään koordinaattien numerot ja kirjaimet vihollisen laudan reunoille
-        if i > 0 and i < 11:
-            num_text = fontti.render(str(i), True, (255, 255, 255))
-            screen.blit(num_text, (board_size + 5, offset_y + (i - 0.5) * cell_size))
-            letter_text = fontti.render(chr(64 + i), True, (255, 255, 255))
-            screen.blit(letter_text, (board_size + (i - 0.5) * cell_size, offset_y + 5))
+        # Pystylinjat, lisätään offset x-koordinaattiin
+        pygame.draw.line(screen, (0, 0, 0),
+                         (right_board_offset + left_cell_width * i, 0),
+                         (right_board_offset + left_cell_width * i, left_board_height))
+        # Vaakalinjat
+        pygame.draw.line(screen, (0, 0, 0),
+                         (right_board_offset, left_cell_height * i),
+                         (right_board_offset + left_board_width, left_cell_height * i))
+        if i > 0:
+            # Numerot vihollisen laudan vasempaan reunaan
+            number_text = fontti.render(str(i), True, (0, 0, 0))
+            screen.blit(number_text, (right_board_offset + left_cell_width * 0.1, left_cell_height * i + 5))
+            # Kirjaimet yläreunaan
+            letter_text = fontti.render(chr(i + 64), True, (0, 0, 0))
+            screen.blit(letter_text, (right_board_offset + left_cell_width * i + 5, left_cell_height * 0.1))
 
     pygame.display.flip()
+
                             
 
 
@@ -495,7 +495,7 @@ def main():
             game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
 
         elif game_state == "playing":
-            piirra_pelitilanne()
+            piirra_kaksi_ruudukkoa()
             
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
