@@ -59,6 +59,30 @@ def on_game_start(data):
     game_state = "setup_ships"  # siirtyy laivojen asettamiseen
     print("Pelimuoto setup_ships")
 
+@sio.on('bomb_shot')
+def on_bomb_shot(data):
+    """
+    Vastaanottaa toisen pelaajan ampuman pommin koordinaatit serveriltä.
+    """
+    x = data.get("x")
+    y = data.get("y")
+    print(f"Vastustaja ampui ruutuun ({x}, {y})!")
+    # Voit tässä merkitä osuman/hudin omassa ruudukossasi
+    # Esim. if laivat[x][y] == 1: -> osui laivaan
+
+@sio.on('shot_result')
+def on_shot_result(data):
+    """
+    Vastaanottaa tiedon oman laukauksesi tuloksesta (osuma/huti) serveriltä,
+    jos haluat sellaisen logiikan.
+    """
+    x = data.get("x")
+    y = data.get("y")
+    hit = data.get("hit", False)  # True/False
+    print(f"Pommituksen tulos: Ruutu ({x},{y}), osuma: {hit}")
+    # Tähän grafiikkaa
+
+
 def connect_to_server():
     discovered_ip = discover_server()
     if discovered_ip:
@@ -101,15 +125,26 @@ sukellusvene=[[-1,-1]]
 sukellusveneCopy=[[-1,-1]]
 
 def piirra_ruudukko():
-    screen.fill((255, 255, 255))#tyhjää ikkuna
-    for i in range(11):#ruudukon piirto
-        pygame.draw.line(screen,(0, 0, 0), [(LEVEYS/11)*i,0], [(LEVEYS/11)*i,KORKEUS])#pystyviivat
-        pygame.draw.line(screen,(0, 0, 0), [0,(KORKEUS/11)*i], [LEVEYS,(KORKEUS/11)*i])#vaakaviivat
-        if (i>0):
-            number_text = fontti.render(str(i), True, (0, 0, 0))#numerot 1-10
-            screen.blit(number_text, (((LEVEYS/11)*0.1), (((KORKEUS/11)*i)+5)))
-            aakkonen_text = fontti.render(str(chr(i+64)), True, (0, 0, 0))#aakoset A-J chr(asciin numero)
-            screen.blit(aakkonen_text, ((((LEVEYS/11)*i)+5),((KORKEUS/11)*0.1) ))
+    screen.fill((255, 255, 255))  # Tyhjää ikkuna
+    for i in range(11):  # Ruudukon piirto
+        pygame.draw.line(screen, (0, 0, 0), [(LEVEYS / 22) * i, 0], [(LEVEYS / 22) * i, KORKEUS])  # Pystyviivat
+        pygame.draw.line(screen, (0, 0, 0), [0, (KORKEUS / 11) * i], [LEVEYS / 2, (KORKEUS / 11) * i])  # Vaakaviivat
+        if i > 0:
+            number_text = fontti.render(str(i), True, (0, 0, 0))  # Numerot 1-10
+            screen.blit(number_text, (((LEVEYS / 22) * 0.1), (((KORKEUS / 11) * i) + 5)))
+            aakkonen_text = fontti.render(str(chr(i + 64)), True, (0, 0, 0))  # Aakkoset A-J chr(asciin numero)
+            screen.blit(aakkonen_text, ((((LEVEYS / 22) * i) + 5), ((KORKEUS / 11) * 0.1)))
+    pygame.display.flip()
+
+def piirra_vihollisen_ruudukko():
+    for i in range(11):  # Ruudukon piirto
+        pygame.draw.line(screen, (0, 0, 0), [(LEVEYS / 22) * i + LEVEYS / 2, 0], [(LEVEYS / 22) * i + LEVEYS / 2, KORKEUS])  # Pystyviivat
+        pygame.draw.line(screen, (0, 0, 0), [LEVEYS / 2, (KORKEUS / 11) * i], [LEVEYS, (KORKEUS / 11) * i])  # Vaakaviivat
+        if i > 0:
+            number_text = fontti.render(str(i), True, (0, 0, 0))  # Numerot 1-10
+            screen.blit(number_text, (((LEVEYS / 22) * 0.1) + LEVEYS / 2, (((KORKEUS / 11) * i) + 5)))
+            aakkonen_text = fontti.render(str(chr(i + 64)), True, (0, 0, 0))  # Aakkoset A-J chr(asciin numero)
+            screen.blit(aakkonen_text, ((((LEVEYS / 22) * i) + 5) + LEVEYS / 2, ((KORKEUS / 11) * 0.1)))
     pygame.display.flip()
 
 def piirra_laivat():#myös asettaa laivat 2d listaan
@@ -446,12 +481,30 @@ def main():
             game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
 
         elif game_state == "playing":
-            screen.fill((0, 50, 0))  # Pelialueen piirto (korvaa omalla logiikalla)
-            pygame.display.flip()
-            
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+            screen.fill((0, 50, 0))
+            piirra_ruudukko()       # Jos haluat piirtää vasta-ampumisen ruudukon
+            piirra_vihollisen_ruudukko()
+            # piirra_laivat()       # Tarpeen mukaan, jos haluat näyttää omia laivoja
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = event.pos
+                    # Laske ruudun koordinaatit klikkauksen perusteella
+                    # HUOM: sinun pitää sovittaa tämä ruudukon piirtotapaasi!
+                    # Alla vain esimerkki:
+                    # TÄÄ EI VARMAAN TOIMI MUT TESTAILLAAN SITTE KU PÄÄSTÄÄN TÄHÄN VAIHEESEEN
+                    grid_x = int((mouse_x - (LEVEYS/2)) // (LEVEYS/22))
+                    grid_y = int(mouse_y  // (KORKEUS/11))
+
+                    if 0 <= grid_x < 10 and 0 <= grid_y < 10:
+                        print(f"Ampuminen ruutuun: ({grid_x}, {grid_y})")
+                        # Lähetä serverille
+                        sio.emit('bomb_shot', {"x": grid_x, "y": grid_y})
+
+    pygame.display.flip()
 
     sio.disconnect()
     pygame.quit()
