@@ -167,26 +167,26 @@ sukellusvene = [[-1, -1]]
 sukellusveneCopy = copy.deepcopy(sukellusvene)
 
 def piirra_ruudukko():
-    screen.fill((255, 255, 255))
-    for i in range(11):
-        pygame.draw.line(screen, (0, 0, 0), [(LEVEYS / 22) * i, 0], [(LEVEYS / 22) * i, KORKEUS])
-        pygame.draw.line(screen, (0, 0, 0), [0, (KORKEUS / 11) * i], [LEVEYS / 2, (KORKEUS / 11) * i])
+    screen.fill((255, 255, 255))  # Tyhjää ikkuna
+    for i in range(11):  # Ruudukon piirto
+        pygame.draw.line(screen, (0, 0, 0), [(LEVEYS / 22) * i, 0], [(LEVEYS / 22) * i, KORKEUS])  # Pystyviivat
+        pygame.draw.line(screen, (0, 0, 0), [0, (KORKEUS / 11) * i], [LEVEYS / 2, (KORKEUS / 11) * i])  # Vaakaviivat
         if i > 0:
-            number_text = fontti.render(str(i), True, (0, 0, 0))
-            screen.blit(number_text, ((LEVEYS / 22) * 0.1, (KORKEUS / 11) * i + 5))
-            aakkonen_text = fontti.render(chr(i + 64), True, (0, 0, 0))
-            screen.blit(aakkonen_text, ((LEVEYS / 22) * i + 5, (KORKEUS / 11) * 0.1))
+            number_text = fontti.render(str(i), True, (0, 0, 0))  # Numerot 1-10
+            screen.blit(number_text, (((LEVEYS / 22) * 0.1), (((KORKEUS / 11) * i) + 5)))
+            aakkonen_text = fontti.render(str(chr(i + 64)), True, (0, 0, 0))  # Aakkoset A-J chr(asciin numero)
+            screen.blit(aakkonen_text, ((((LEVEYS / 22) * i) + 5), ((KORKEUS / 11) * 0.1)))
     pygame.display.flip()
 
 def piirra_vihollisen_ruudukko():
-    for i in range(11):
-        pygame.draw.line(screen, (0, 0, 0), [(LEVEYS / 22) * i + LEVEYS / 2, 0], [(LEVEYS / 22) * i + LEVEYS / 2, KORKEUS])
-        pygame.draw.line(screen, (0, 0, 0), [LEVEYS / 2, (KORKEUS / 11) * i], [LEVEYS, (KORKEUS / 11) * i])
+    for i in range(11):  # Ruudukon piirto
+        pygame.draw.line(screen, (0, 0, 0), [(LEVEYS / 22) * i + LEVEYS / 2, 0], [(LEVEYS / 22) * i + LEVEYS / 2, KORKEUS])  # Pystyviivat
+        pygame.draw.line(screen, (0, 0, 0), [LEVEYS / 2, (KORKEUS / 11) * i], [LEVEYS, (KORKEUS / 11) * i])  # Vaakaviivat
         if i > 0:
-            number_text = fontti.render(str(i), True, (0, 0, 0))
-            screen.blit(number_text, ((LEVEYS / 22) * 0.1 + LEVEYS / 2, (KORKEUS / 11) * i + 5))
-            aakkonen_text = fontti.render(chr(i + 64), True, (0, 0, 0))
-            screen.blit(aakkonen_text, (((LEVEYS / 22) * i) + 5 + LEVEYS / 2, (KORKEUS / 11) * 0.1))
+            number_text = fontti.render(str(i), True, (0, 0, 0))  # Numerot 1-10
+            screen.blit(number_text, (((LEVEYS / 22) * 0.1) + LEVEYS / 2, (((KORKEUS / 11) * i) + 5)))
+            aakkonen_text = fontti.render(str(chr(i + 64)), True, (0, 0, 0))  # Aakkoset A-J chr(asciin numero)
+            screen.blit(aakkonen_text, ((((LEVEYS / 22) * i) + 5) + LEVEYS / 2, ((KORKEUS / 11) * 0.1)))
     pygame.display.flip()
 
 def piirra_laivat():
@@ -420,58 +420,59 @@ def main():
                 if event.type == pygame.QUIT:
                     running = False
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_h:
+                    if event.key == pygame.K_h:  # Host
                         print("Hosting game...")
-                        connect_to_server()
-                        start_screen = False
-                    elif event.key == pygame.K_j:
+                        connect_to_server()  # Host liittyy serveriin
+                        start_screen = False  # Tässä voisi alkaa hostauksen käsittely
+                    elif event.key == pygame.K_j:  # Join
                         print("Joining game...")
                         connect_to_server()
-                        start_screen = False
-                    elif event.key == pygame.K_a:
-                        print("Laivojen asettaminen...")
+                        start_screen = False  # Tässä voisi alkaa liittymisen käsittely
+                    elif event.key == pygame.K_a:  # aseta laivat
+                        print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
+                        
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if host_rect.collidepoint(event.pos):
                         print("Hosting game...")
-                        connect_to_server()
+                        connect_to_server()  # Host liittyy serveriin
                         start_screen = False
                     elif join_rect.collidepoint(event.pos):
                         print("Joining game...")
                         connect_to_server()
                         start_screen = False
                     elif laivojen_asetus_rect.collidepoint(event.pos):
-                        print("Laivojen asettaminen...")
+                        print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
-        elif game_state == "setup_ships":
-            print("Siirrytään laivojen asetteluun...")
-            screen.fill((255, 255, 255))
-            aseta_laivat()
-            game_state = "playing"
+
+        elif game_state == "setup_ships": 
+            print("Siirrytään laivojen asetteluun...")  # Debuggausta varten
+            screen.fill((255, 255, 255))  # Tyhjennetään näyttö, jotta ruudukko piirtyy
+            aseta_laivat()  # Nyt kutsutaan aseta_laivat(), kun peli on setup_ships-tilassa
+            game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
+
         elif game_state == "playing":
             screen.fill((0, 50, 0))
-            piirra_ruudukko()       # Jos haluat piirtää vasta-ampumisen ruudukon
-            piirra_vihollisen_ruudukko()
-            # piirra_laivat()       # Tarpeen mukaan, jos haluat näyttää omia laivoja
+            piirra_ruudukko()       # Piirretään oma ruudukko
+            piirra_vihollisen_ruudukko()  # Piirretään vihollisen ruudukko
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_x, mouse_y = event.pos
                     # Laske ruudun koordinaatit klikkauksen perusteella
-                    # HUOM: sinun pitää sovittaa tämä ruudukon piirtotapaasi!
-                    # Alla vain esimerkki:
-                    # TÄÄ EI VARMAAN TOIMI MUT TESTAILLAAN SITTE KU PÄÄSTÄÄN TÄHÄN VAIHEESEEN
-                    grid_x = int((mouse_x - (LEVEYS/2)) // (LEVEYS/22))
-                    grid_y = int(mouse_y  // (KORKEUS/11))
+                    if mouse_x > LEVEYS / 2:  # Tarkista, että klikkaus on vihollisen ruudukossa
+                        grid_x = int((mouse_x - LEVEYS / 2) // (LEVEYS / 22))
+                        grid_y = int(mouse_y // (KORKEUS / 11))
 
-                    if 0 <= grid_x < 10 and 0 <= grid_y < 10:
-                        print(f"Ampuminen ruutuun: ({grid_x}, {grid_y})")
-                        # Lähetä serverille
-                        sio.emit('bomb_shot', {"x": grid_x, "y": grid_y})
+                        if 0 <= grid_x < 10 and 0 <= grid_y < 10:
+                            print(f"Ampuminen ruutuun: ({grid_x}, {grid_y})")
+                            # Lähetä serverille
+                            sio.emit('bomb_shot', {"x": grid_x, "y": grid_y})
 
     pygame.display.flip()
 
