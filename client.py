@@ -372,6 +372,55 @@ def aseta_yksi_laiva(laivaTemp):#saa laiva listan ja jos muuttaa laiva parametri
                         
     return laivaTemp#tämä palautetaan jos y painettu eikä ole päällekkäin
                             
+def piirra_pelitilanne():
+    # Määritellään pelilaudan koko (olettaen neliö, esim. 400x400)
+    board_size = 400
+    # Keskitetään ruudukot pystysuunnassa
+    offset_y = (KORKEUS - board_size) / 2
+    cell_size = board_size / 10  # solun koko 10 ruudun pituudelta
+
+    # Täytetään taustaksi vihreä sävy
+    screen.fill((0, 50, 0))
+
+    # Piirretään pelaajan lauta vasempaan puoliskoon (x: 0 -> board_size)
+    for i in range(11):
+        # Pystyviivat
+        start_pos = (i * cell_size, offset_y)
+        end_pos = (i * cell_size, offset_y + board_size)
+        pygame.draw.line(screen, (255, 255, 255), start_pos, end_pos, 2)
+        # Vaakaviivat
+        start_pos = (0, offset_y + i * cell_size)
+        end_pos = (board_size, offset_y + i * cell_size)
+        pygame.draw.line(screen, (255, 255, 255), start_pos, end_pos, 2)
+        
+        # Lisätään koordinaattien numerot ja kirjaimet (valinnainen)
+        if i > 0 and i < 11:
+            # Numerot vasempaan reunaan
+            num_text = fontti.render(str(i), True, (255, 255, 255))
+            screen.blit(num_text, (5, offset_y + (i - 0.5) * cell_size))
+            # Kirjaimet yläreunaan
+            letter_text = fontti.render(chr(64 + i), True, (255, 255, 255))
+            screen.blit(letter_text, ((i - 0.5) * cell_size, offset_y + 5))
+    
+    # Piirretään vihollisen lauta oikeaan puoliskoon (x: board_size -> board_size*2)
+    for i in range(11):
+        # Pystyviivat: siirretään laudan alku board_size:lla oikealle
+        start_pos = (board_size + i * cell_size, offset_y)
+        end_pos = (board_size + i * cell_size, offset_y + board_size)
+        pygame.draw.line(screen, (255, 255, 255), start_pos, end_pos, 2)
+        # Vaakaviivat
+        start_pos = (board_size, offset_y + i * cell_size)
+        end_pos = (board_size + board_size, offset_y + i * cell_size)
+        pygame.draw.line(screen, (255, 255, 255), start_pos, end_pos, 2)
+        
+        # Lisätään koordinaattien numerot ja kirjaimet vihollisen laudan reunoille
+        if i > 0 and i < 11:
+            num_text = fontti.render(str(i), True, (255, 255, 255))
+            screen.blit(num_text, (board_size + 5, offset_y + (i - 0.5) * cell_size))
+            letter_text = fontti.render(chr(64 + i), True, (255, 255, 255))
+            screen.blit(letter_text, (board_size + (i - 0.5) * cell_size, offset_y + 5))
+
+    pygame.display.flip()
                             
 
 
@@ -446,8 +495,7 @@ def main():
             game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
 
         elif game_state == "playing":
-            screen.fill((0, 50, 0))  # Pelialueen piirto (korvaa omalla logiikalla)
-            pygame.display.flip()
+            piirra_pelitilanne()
             
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
