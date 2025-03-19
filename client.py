@@ -86,6 +86,10 @@ laivojen_asetus_rect = pygame.Rect(((LEVEYS/2)-150), 400, 300, 50)
 laivat=[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],
 [0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],
 [0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]]
+#2d lista 10*10 pommituksille 0=ei pommitettu 1=pommitettu
+bomb_data=[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]]
 #arvot voi olla 0-9   [A-J, 1-10]
 lentotukialus=[[-1,-1],[2,3],[2,4],[2,5],[2,6]]#x y koordinaatit alustetaan -1
 lentotukialusCopy=[[-1,-1],[2,3],[2,4],[2,5],[2,6]]#kopiot Joita ei piirretä 2d listaan
@@ -156,6 +160,24 @@ def piirra_laivat():#myös asettaa laivat 2d listaan
                 pygame.draw.rect(screen, (50, 50, 200), cell_rect)
                 pygame.display.flip()
 
+def update_bomb_data(x, y):
+    if bomb_data[x][y]==0:
+        bomb_data[x][y]=1  # Merkkaa solun pommitetuksi
+        if laivat[x][y]==1:
+            print("Osuma!")
+        else:
+            print("Ohitus!")
+
+def piirra_pommitukset():
+    for x in range(10):
+        for y in range(10):
+            if bomb_data[x][y]==1:
+                cell_x = ((LEVEYS/11)*x)+(LEVEYS/11)
+                cell_y = ((KORKEUS/11)*y)+(KORKEUS/11)
+                pygame.draw.circle(screen, (255, 0, 0),
+                                   (int(cell_x+(LEVEYS/10.9)/2),int(cell_y+(KORKEUS/10.9)/2)),
+                                   int(LEVEYS/30))
+    pygame.display.flip()
 
 def aseta_laivat():
     piirra_ruudukko()
@@ -422,10 +444,6 @@ def piirra_kaksi_ruudukkoa():
     pygame.display.flip()
 
                             
-
-
-
-
 def draw_start_screen():
     screen.fill((0, 0, 0))
     otsikko = fontti.render("Laivanupotus peli :D", True, (255, 255, 255))
@@ -500,6 +518,11 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if game_state=="playing":
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_b:
+                        update_bomb_data(5,5)
+                        piirra_pommitukset()
 
     sio.disconnect()
     pygame.quit()
@@ -507,4 +530,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
