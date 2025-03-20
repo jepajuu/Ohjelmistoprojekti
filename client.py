@@ -75,7 +75,7 @@ def connect_to_server():
 
 # Pygame UI
 fontti = pygame.font.SysFont(None, 50)
-screen = pygame.display.set_mode((LEVEYS, KORKEUS))
+screen = pygame.display.set_mode((LEVEYS, KORKEUS),pygame.RESIZABLE)
 pygame.display.set_caption("Laivanupotus")
 
 host_rect = pygame.Rect(LEVEYS // 2 - 160, 300, 150, 50)#mitta vasemmasta reunasta,ylhäältä,leveys,korkeus
@@ -441,9 +441,28 @@ def piirra_kaksi_ruudukkoa():
             letter_text = fontti.render(chr(i + 64), True, (0, 0, 0))
             screen.blit(letter_text, (right_board_offset + left_cell_width * i + 5, left_cell_height * 0.1))
 
+    #jos tämä flip ei päällä pitää seuraavassa esim laivojen piirrossa tehdä flip
+    #pygame.display.flip()#tarvittaesssa poista kommenttista kun tämä flip päällä kenttä vilkkuu
+
+def piirra_omatlaivat_kahteen_ruudukkoon():#piirtää laivat laivat 2d listasta pelikenttään jossa omat ja vihollisen kenttä
+    global laivat#kerrotaan varmuudeksi että global lista muuttuja joka määritelty ihan alussa
+    #ei aseta tai tee muuta kuin piirtää laivat
+    print("piirretään omat laivat kahteen ruudukkoon")
+
+    for x in range(len(laivat)):#piirtää laivat laivat 2d taulukosta jos 1
+        #print(x)
+        for y in range(len(laivat[x])):
+            if(laivat[x][y]==1):
+                cell_rect = pygame.Rect((((LEVEYS/22)*x)+(LEVEYS/22)), (((KORKEUS/11)*y)+(KORKEUS/11)), (LEVEYS/21.9), (KORKEUS/10.9))#mitta vasemmasta reunasta,ylhäältä,leveys,korkeus
+                pygame.draw.rect(screen, (50, 50, 200), cell_rect)
+                #pygame.display.flip()
     pygame.display.flip()
 
-                            
+
+
+
+
+
 def draw_start_screen():
     screen.fill((0, 0, 0))
     otsikko = fontti.render("Laivanupotus peli :D", True, (255, 255, 255))
@@ -491,6 +510,8 @@ def main():
                         print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
+                        game_state = "playing"#Väliaikainen TEMP
+                        start_screen = False#TEMP
                         
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if host_rect.collidepoint(event.pos):
@@ -505,6 +526,8 @@ def main():
                         print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
+                        game_state = "playing"#Väliaikainen TEMP
+                        start_screen = False#TEMP
 
         elif game_state == "setup_ships": 
             print("Siirrytään laivojen asetteluun...")  # Debuggausta varten
@@ -513,7 +536,11 @@ def main():
             game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
 
         elif game_state == "playing":
+            
+
             piirra_kaksi_ruudukkoa()
+            piirra_omatlaivat_kahteen_ruudukkoon()
+            clock.tick(30)#voi poistaa vain testaukseen
             
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
