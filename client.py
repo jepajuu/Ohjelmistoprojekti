@@ -545,11 +545,7 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if game_state=="playing":
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_b:
-                        update_bomb_data(5,5)
-                        piirra_pommitukset()
+
 
     sio.disconnect()
     pygame.quit()
