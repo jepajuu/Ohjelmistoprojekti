@@ -510,8 +510,8 @@ def main():
                         print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
-                        game_state = "playing"#Väliaikainen TEMP
-                        start_screen = False#TEMP
+                        ##game_state = "playing"#Väliaikainen TEMP
+                        ##start_screen = False#TEMP
                         
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if host_rect.collidepoint(event.pos):
@@ -526,8 +526,8 @@ def main():
                         print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
-                        game_state = "playing"#Väliaikainen TEMP
-                        start_screen = False#TEMP
+                        ##game_state = "playing"#Väliaikainen TEMP
+                        ##start_screen = False#TEMP
 
         elif game_state == "setup_ships": 
             print("Siirrytään laivojen asetteluun...")  # Debuggausta varten
