@@ -561,6 +561,8 @@ def main():
             screen.fill((255, 255, 255))
             aseta_laivat()
             game_state = "playing"  # Kun laivat on asetettu, siirrytään pelaamiseen
+            sio.emit("ships_ready")  # Ilmoitetaan serverille että ollaan valmiita
+
 
         # ==================== PLAYING TILA ==========================
         elif game_state == "playing":

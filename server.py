@@ -125,3 +125,16 @@ if __name__ == "__main__":
     discovery_thread.start()
     
     socketio.run(app, host="0.0.0.0", port=5555)
+
+ready_players = set()
+
+@socketio.on('ships_ready')
+def handle_ships_ready():
+    global current_turn_index, current_turn_sid
+    sid = request.sid
+    ready_players.add(sid)
+    print(f"Pelaaja {sid} on valmis")
+
+    if len(ready_players) == maks_pelaajat:
+        print("Kaikki pelaajat ovat asettaneet laivat. Vuorot alkavat.")
+        emit('turn_change', {'sid': current_turn_sid}, broadcast=True)
