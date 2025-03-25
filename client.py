@@ -447,7 +447,7 @@ def piirra_kaksi_ruudukkoa():
 def piirra_omatlaivat_kahteen_ruudukkoon():#piirtää laivat laivat 2d listasta pelikenttään jossa omat ja vihollisen kenttä
     global laivat#kerrotaan varmuudeksi että global lista muuttuja joka määritelty ihan alussa
     #ei aseta tai tee muuta kuin piirtää laivat
-    print("piirretään omat laivat kahteen ruudukkoon")
+    ##print("piirretään omat laivat kahteen ruudukkoon")
 
     for x in range(len(laivat)):#piirtää laivat laivat 2d taulukosta jos 1
         #print(x)
