@@ -536,7 +536,28 @@ def main():
             game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
 
         elif game_state == "playing":
-            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                # Lasketaan, osuiko klikkaus oikeanpuoleiseen ruudukkoon
+                left_board_width = LEVEYS / 2        # Vasen puoli on 0 ... left_board_width
+                left_cell_width = (LEVEYS / 2) / 11  # Kymmenen saraketta + reunat = 11 viivaa
+                left_cell_height = (KORKEUS) / 11
+
+                mouse_x, mouse_y = event.pos
+                
+                # Onko klikkaus oikealla puoliskolla?
+                if mouse_x > left_board_width:
+                    # Lasketaan, mikä ruutu on kyseessä
+                    # Otetaan offset pois x-koordinaatista
+                    oikea_offset = mouse_x - left_board_width
+                    cell_x = int(oikea_offset // left_cell_width)
+                    cell_y = int(mouse_y // left_cell_height)
+
+                    # Varmistetaan että ollaan 0–9 alueella
+                    if 0 <= cell_x < 10 and 0 <= cell_y < 10:
+                        print(f"Klikkasit vastustajan ruudukon ruutua: ({cell_x}, {cell_y})")
+
+            # Lähetä palvelimelle pommitus
+            sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
 
             piirra_kaksi_ruudukkoa()
             piirra_omatlaivat_kahteen_ruudukkoon()
@@ -553,3 +574,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+#socketio kuuntelija
+@sio.on("bomb_update")
+def on_bomb_update(data):
+    """
+    Palvelimelta tulee viesti pommituksen koordinaateista,
+    ja tämä funktio päivittää bomb_data -taulukon sekä piirtää pommituksen.
+    """
+    x = data["x"]
+    y = data["y"]
+    update_bomb_data(x, y)  # Merkitään pommitus local-bomb_dataan
+    piirra_pommitukset()    # Piirretään punainen piste

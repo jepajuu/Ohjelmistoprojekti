@@ -56,6 +56,21 @@ def get_my_ip():
         s.close()
     return ip
 
+
+#Socketio event pommin ampumiselle, lähettää
+#koordinaatit ja broadcastaa takaisin kaikille pelaajille
+@socketio.on('shoot_bomb')
+def handle_shoot_bomb(data):
+    """
+    Vastaanottaa pommituksen koordinaatit (x, y)
+    ja lähettää ne kaikille pelaajille.
+    """
+    x = data.get('x')
+    y = data.get('y')
+    print(f"Vastaanotettu pommitus koordinaatteihin {x}, {y}")
+    emit('bomb_update', {'x': x, 'y': y}, broadcast=True)
+
+
 # UDP discovery constants
 UDP_DISCOVERY_PORT = 5557
 DISCOVERY_REQUEST = "DISCOVER_SERVER_REQUEST"
