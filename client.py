@@ -163,38 +163,23 @@ def piirra_laivat():#myös asettaa laivat 2d listaan
                 pygame.display.flip()
 
 def update_bomb_data(x, y):
-    if bomb_data[x][y] == 0:  # vain jos ei aiemmin pommitettu
-        if laivat[x][y] == 1:
+    if bomb_data[x][y]==0:
+        bomb_data[x][y]=1  # Merkkaa solun pommitetuksi
+        if laivat[x][y]==1:
             print("Osuma!")
-            bomb_data[x][y] = 2  # 2 = osuma
         else:
             print("Ohitus!")
-            bomb_data[x][y] = 1  # 1 = ohitus
-
 
 def piirra_pommitukset():
     for x in range(10):
         for y in range(10):
-            if bomb_data[x][y] != 0:
-                # Lasketaan pommin keskipiste
-                cell_x = (LEVEYS / 11) * x + (LEVEYS / 11)
-                cell_y = (KORKEUS / 11) * y + (KORKEUS / 11)
-                
-                # Jos ohitus (1), piirretään musta piste
-                if bomb_data[x][y] == 1:
-                    color = (0, 0, 0)   # musta
-                # Jos osuma (2), piirretään punainen piste
-                elif bomb_data[x][y] == 2:
-                    color = (255, 0, 0) # punainen
-                
-                pygame.draw.circle(
-                    screen,
-                    color,
-                    (int(cell_x + (LEVEYS / 10.9) / 2), int(cell_y + (KORKEUS / 10.9) / 2)),
-                    int(LEVEYS / 30)
-                )
+            if bomb_data[x][y]==1:
+                cell_x = ((LEVEYS/11)*x)+(LEVEYS/11)
+                cell_y = ((KORKEUS/11)*y)+(KORKEUS/11)
+                pygame.draw.circle(screen, (255, 0, 0),
+                                   (int(cell_x+(LEVEYS/10.9)/2),int(cell_y+(KORKEUS/10.9)/2)),
+                                   int(LEVEYS/30))
     pygame.display.flip()
-
 
 def aseta_laivat():
     piirra_ruudukko()
