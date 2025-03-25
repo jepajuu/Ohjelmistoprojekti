@@ -536,34 +536,37 @@ def main():
             game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
 
         elif game_state == "playing":
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                # Lasketaan, osuiko klikkaus oikeanpuoleiseen ruudukkoon
-                left_board_width = LEVEYS / 2        # Vasen puoli on 0 ... left_board_width
-                left_cell_width = (LEVEYS / 2) / 11  # Kymmenen saraketta + reunat = 11 viivaa
-                left_cell_height = (KORKEUS) / 11
+            # Tämä osio päivittää näyttöä ja käsittelee tapahtumat
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
 
-                mouse_x, mouse_y = event.pos
-                
-                # Onko klikkaus oikealla puoliskolla?
-                if mouse_x > left_board_width:
-                    # Lasketaan, mikä ruutu on kyseessä
-                    # Otetaan offset pois x-koordinaatista
-                    oikea_offset = mouse_x - left_board_width
-                    cell_x = int(oikea_offset // left_cell_width)
-                    cell_y = int(mouse_y // left_cell_height)
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = event.pos
 
-                    # Varmistetaan että ollaan 0–9 alueella
-                    if 0 <= cell_x < 10 and 0 <= cell_y < 10:
-                        print(f"Klikkasit vastustajan ruudukon ruutua: ({cell_x}, {cell_y})")
+                    # Lasketaan oikeanpuoleisen ruudukon mitat
+                    left_board_width = LEVEYS / 2
+                    left_cell_width = (LEVEYS / 2) / 11
+                    left_cell_height = KORKEUS / 11
 
-            # Lähetä palvelimelle pommitus
-            sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
+                    if mouse_x > left_board_width:
+                        # Klikattiin oikeaa ruudukkoa
+                        oikea_offset = mouse_x - left_board_width
+                        cell_x = int(oikea_offset // left_cell_width)
+                        cell_y = int(mouse_y // left_cell_height)
 
-            piirra_kaksi_ruudukkoa()
-            piirra_omatlaivat_kahteen_ruudukkoon()
-            clock.tick(30)#voi poistaa vain testaukseen
+                        if 0 <= cell_x < 10 and 0 <= cell_y < 10:
+                            print(f"Klikkasit vastustajan ruudukon ruutua: ({cell_x}, {cell_y})")
+                            # Lähetä pommituspalvelimelle täällä:
+                            sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
+
+    # Piirretään ruudut aina loopin lopussa
+    piirra_kaksi_ruudukkoa()
+    piirra_omatlaivat_kahteen_ruudukkoon()
+    clock.tick(30)
+
             
-        for event in pygame.event.get():
+    for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
