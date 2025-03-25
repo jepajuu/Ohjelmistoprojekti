@@ -10,7 +10,10 @@ app = Flask(__name__)
 # Switch to threading async mode for better compatibility on Windows
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
-players = {}  # Tallentaa pelaajien yhteydet
+players = {}           # { sid: ip }
+turn_order = []        # lista pelaajien socket-idoista
+current_turn_index = 0 # 0 tai 1 (jos on vain kaksi pelaajaa)
+current_turn_sid = None
 
 @app.route('/')
 def index():
@@ -30,7 +33,16 @@ def handle_connect():
 
     if len(players) == maks_pelaajat:
         print("Peli alkaa, molemmat pelaajat ovat liittyneet")
+
+        global turn_order, current_turn_index, current_turn_sid
+        turn_order = list(players.keys())  # Haetaan socket-id:t listaksi
+        current_turn_index = 0            # Aloitetaan ensimmäisestä
+        current_turn_sid = turn_order[current_turn_index]
+
         emit('game_start', {"message": "Peli alkaa"}, broadcast=True)
+
+        # Kerrotaan myös kaikille, kenellä on vuoro
+        emit('turn_change', {'sid': current_turn_sid}, broadcast=True)
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -61,14 +73,26 @@ def get_my_ip():
 #koordinaatit ja broadcastaa takaisin kaikille pelaajille
 @socketio.on('shoot_bomb')
 def handle_shoot_bomb(data):
-    """
-    Vastaanottaa pommituksen koordinaatit (x, y)
-    ja lähettää ne kaikille pelaajille.
-    """
+    global current_turn_index, current_turn_sid
+
+    sid = request.sid
+    # Tarkistetaan vuoro
+    if sid != current_turn_sid:
+        print(f"Ei ole {sid} vuoro")
+        return  # Ei tehdä mitään
+    
+    # Vastaanotetaan koordinaatit ja pommitetaan
     x = data.get('x')
     y = data.get('y')
-    print(f"Vastaanotettu pommitus koordinaatteihin {x}, {y}")
+    print(f"Vastaanotettu pommitus koordinaatteihin {x}, {y} pelaajalta {sid}")
     emit('bomb_update', {'x': x, 'y': y}, broadcast=True)
+
+    # Vaihdetaan vuoro pommituksen jälkeen
+    current_turn_index = 1 - current_turn_index
+    current_turn_sid = turn_order[current_turn_index]
+
+    # Ilmoitetaan uusi vuoro
+    emit('turn_change', {'sid': current_turn_sid}, broadcast=True)
 
 
 # UDP discovery constants

@@ -8,6 +8,8 @@ import copy#tämä tarvitaan että voi tehdä sisäkkäisille listoille copyn
 pygame.init()
 pygame.font.init()
 
+my_turn = False
+
 LEVEYS, KORKEUS = 800, 600
 #pip install "python-socketio"
 
@@ -565,6 +567,11 @@ def main():
             # Käsitellään tapahtumat playing-tilassa
             for event in events:
                 if event.type == pygame.MOUSEBUTTONDOWN:
+                   # Tarkistetaan, onko sinulla vuoro
+                    if not my_turn:
+                        print("Ei ole minun vuoro")
+                        continue  # Ohitetaan klikkaus 
+
                     mouse_x, mouse_y = event.pos
 
                     # Lasketaan oikean puolen (”vihollisen laudan”) rajat
@@ -607,3 +614,22 @@ def on_bomb_update(data):
     y = data["y"]
     update_bomb_data(x, y)  # Merkitään pommitus local-bomb_dataan
     piirra_pommitukset()    # Piirretään punainen piste
+
+@sio.event
+def connect():
+    # Kun yhteys muodostuu, socket.io automaattisesti asettaa sio.sid -arvon
+    print(f"Client connected with sid: {sio.sid}")
+
+@sio.on('turn_change')
+def on_turn_change(data):
+    global my_turn
+    turn_sid = data['sid']
+    print(f"Vuoro vaihtui, vuorossa on {turn_sid}")
+
+    # Jos palvelimen ilmoittama vuoro-osuma on oma sid, aseta my_turn = True
+    if turn_sid == sio.sid:
+        my_turn = True
+        print("Nyt on sinun vuoro ampua!")
+    else:
+        my_turn = False
+        print("Odotetaan, että toinen pelaaja ampuu.")
