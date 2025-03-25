@@ -484,39 +484,46 @@ def draw_start_screen():
 game_state = "start"  # Peli alkaa start-näkymästä
 
 def main():
+    """
+    Pääfunktio, jossa on Pygamen pelisilmukka (while running).
+    Ohjelma jakautuu eri pelitiloihin (start, setup_ships, playing).
+    """
     global game_state
     clock = pygame.time.Clock()
     running = True
     start_screen = True
     
     while running:
-        clock.tick(30)
-        
+        clock.tick(30)  # rajoitetaan päivitystaajuus ~30 fps
+
+        # Kerätään kaikki tapahtumat listaan
+        events = pygame.event.get()
+        for event in events:
+            if event.type == pygame.QUIT:
+                running = False
+
+        # ==================== START-SCREEN TILA ======================
         if start_screen:
-            draw_start_screen()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
+            # Käydään tapahtumat läpi start-näkymässä
+            for event in events:
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_h:  # Host
+                    if event.key == pygame.K_h:
                         print("Hosting game...")
-                        connect_to_server()  # Host liittyy serveriin
-                        start_screen = False  # Tässä voisi alkaa hostauksen käsittely
-                    elif event.key == pygame.K_j:  # Join
+                        connect_to_server()
+                        start_screen = False
+                    elif event.key == pygame.K_j:
                         print("Joining game...")
                         connect_to_server()
-                        start_screen = False  # Tässä voisi alkaa liittymisen käsittely
-                    elif event.key == pygame.K_a:  # aseta laivat
+                        start_screen = False
+                    elif event.key == pygame.K_a:
                         print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
-                        ##game_state = "playing"#Väliaikainen TEMP
-                        ##start_screen = False#TEMP
-                        
-                if event.type == pygame.MOUSEBUTTONDOWN:
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
                     if host_rect.collidepoint(event.pos):
                         print("Hosting game...")
-                        connect_to_server()  # Host liittyy serveriin
+                        connect_to_server()
                         start_screen = False
                     elif join_rect.collidepoint(event.pos):
                         print("Joining game...")
@@ -526,51 +533,47 @@ def main():
                         print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
-                        ##game_state = "playing"#Väliaikainen TEMP
-                        ##start_screen = False#TEMP
 
-        elif game_state == "setup_ships": 
-            print("Siirrytään laivojen asetteluun...")  # Debuggausta varten
-            screen.fill((255, 255, 255))  # Tyhjennetään näyttö, jotta ruudukko piirtyy
-            aseta_laivat()  # Nyt kutsutaan aseta_laivat(), kun peli on setup_ships-tilassa
-            game_state = "playing"  # Siirrytään pelaamiseen laivojen asettamisen jälkeen
+            # Piirretään start-näkymä joka kierroksella
+            draw_start_screen()
 
+        # ==================== SETUP_SHIPS TILA =======================
+        elif game_state == "setup_ships":
+            # Siirrytään laivojen asetteluun
+            print("Siirrytään laivojen asetteluun...")
+            screen.fill((255, 255, 255))
+            aseta_laivat()
+            game_state = "playing"  # Kun laivat on asetettu, siirrytään pelaamiseen
+
+        # ==================== PLAYING TILA ==========================
         elif game_state == "playing":
-            # Tämä osio päivittää näyttöä ja käsittelee tapahtumat
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-
-                elif event.type == pygame.MOUSEBUTTONDOWN:
+            # Käsitellään tapahtumat playing-tilassa
+            for event in events:
+                if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_x, mouse_y = event.pos
 
-                    # Lasketaan oikeanpuoleisen ruudukon mitat
+                    # Lasketaan oikean puolen (”vihollisen laudan”) rajat
                     left_board_width = LEVEYS / 2
                     left_cell_width = (LEVEYS / 2) / 11
                     left_cell_height = KORKEUS / 11
 
+                    # Jos klikattiin oikeanpuoleista laudan aluetta
                     if mouse_x > left_board_width:
-                        # Klikattiin oikeaa ruudukkoa
                         oikea_offset = mouse_x - left_board_width
                         cell_x = int(oikea_offset // left_cell_width)
                         cell_y = int(mouse_y // left_cell_height)
 
                         if 0 <= cell_x < 10 and 0 <= cell_y < 10:
                             print(f"Klikkasit vastustajan ruudukon ruutua: ({cell_x}, {cell_y})")
-                            # Lähetä pommituspalvelimelle täällä:
+                            # Lähetetään pommitus palvelimelle
                             sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
 
-    # Piirretään ruudut aina loopin lopussa
-    piirra_kaksi_ruudukkoa()
-    piirra_omatlaivat_kahteen_ruudukkoon()
-    clock.tick(30)
+            # Piirretään pelinäkymä joka kierroksella
+            piirra_kaksi_ruudukkoa()
+            piirra_omatlaivat_kahteen_ruudukkoon()
+            clock.tick(30)
 
-            
-    for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-
+    # Kun running = False, poistutaan silmukasta:
     sio.disconnect()
     pygame.quit()
     sys.exit()
