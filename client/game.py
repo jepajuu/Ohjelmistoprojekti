@@ -358,9 +358,12 @@ def run_game():
                 print("Pelitila päivittyi:", game_state)
             elif event.type == pygame.USEREVENT:
                 if hasattr(event, 'custom_type'):
-                    if event.custom_type == 'turn_update' or event.custom_type == 'bomb_update':
+                    if event.custom_type == 'turn_update':
+                        print("Vuoro päivittyi - päivitetään näyttö")
                         update_game_display()
-        
+                    elif event.custom_type == 'bomb_update':
+                        print("Pommitustieto päivittyi - päivitetään näyttö")
+                        update_game_display()
         if start_screen:
             for event in events:
                 if event.type == pygame.KEYDOWN:
