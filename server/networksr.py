@@ -1,4 +1,3 @@
-# server/network.py
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
 import threading
@@ -6,10 +5,13 @@ import socket
 
 maks_pelaajat = 2
 
-# Pelaajien tiedot: pelaajien socket-id:t ja vuorojärjestys
+# Pelaajien tiedot: socket-id:t ja vuorojärjestys
 players = {}         # Esim. {sid: ip}
 player_turns = []    # Lista socket-id:itä
 current_turn_index = 0
+
+# Uusi sanakirja pelaajien laivoille
+player_boards = {}
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
@@ -24,11 +26,11 @@ def handle_connect():
     sid = request.sid
     players[sid] = request.remote_addr
     player_turns.append(sid)
-    # Lähetetään asiakkaalle sen oma tunniste
+    # Lähetetään asiakkaalle oma tunniste
     emit('your_id', {'id': sid})
     print(f"Pelaaja {sid} liittyi. Pelaajia yhteensä: {len(players)}")
     
-    # Ilmoitetaan pelaajien määrä kaikille
+    # Ilmoitetaan kaikille pelaajien määrä
     emit('player_joined', {"players_connected": len(players)}, broadcast=True)
     
     if len(players) == maks_pelaajat:
@@ -42,6 +44,10 @@ def handle_disconnect():
     sid = request.sid
     if sid in players:
         players.pop(sid)
+    if sid in player_boards:
+        player_boards.pop(sid)
+    if sid in player_turns:
+        player_turns.remove(sid)
     print(f"Pelaaja {sid} poistui.")
     emit('player_left', {"id": sid}, broadcast=True)
 
@@ -50,26 +56,47 @@ def handle_message(data):
     print(f"Vastaanotettu viesti: {data['message']}")
     emit('receive_message', data, broadcast=True)
 
-# Socketio-event ampumiselle
+# Uusi tapahtumankäsittelijä laivojen asettamiselle
+@socketio.on('set_ships')
+def handle_set_ships(data):
+    ships = data.get('ships', [])
+    player_boards[request.sid] = ships
+    print(f"Pelaajan {request.sid} laivat asetettu: {ships}")
+
+# Muokattu ampumistapahtuma
+# Muokkaa shoot_bomb -käsittelijää lähettämään erilliset tapahtumat
 @socketio.on('shoot_bomb')
 def handle_shoot_bomb(data):
     global current_turn_index
-    # Varmistetaan, että ampuva pelaaja on vuorossa
-    if request.sid != player_turns[current_turn_index]:
-        print("Ei sinun vuorosi!")
+    shooter_sid = request.sid
+    print(f"Pelaaja {shooter_sid} ampuu ruutuun ({data['x']},{data['y']})")
+    
+    if shooter_sid != player_turns[current_turn_index]:
+        print("Ei vuoroa!")
         emit('not_your_turn', {"message": "Odota vuoroasi!"})
         return
 
     x = data.get('x')
     y = data.get('y')
-    print(f"Pelaaja {request.sid} ampui koordinaatteihin ({x}, {y})")
-    emit('bomb_update', {'x': x, 'y': y}, broadcast=True)
+    opponent_sid = next((sid for sid in player_turns if sid != shooter_sid), None)
+    hit = False
     
-    # Vuoron vaihto
-    current_turn_index = (current_turn_index + 1) % len(player_turns)
-    new_turn_sid = player_turns[current_turn_index]
-    emit('turn_change', {'current_turn': new_turn_sid}, broadcast=True)
-    print("Uusi vuoro:", new_turn_sid)
+    if opponent_sid in player_boards:
+        hit = [x, y] in player_boards[opponent_sid]
+        if hit:
+            player_boards[opponent_sid].remove([x, y])
+            print("OSUMA!")
+        else:
+            print("OHI!")
+
+    emit('bomb_result', {'x': x, 'y': y, 'hit': hit}, room=shooter_sid)
+    emit('ship_hit', {'x': x, 'y': y, 'hit': hit}, room=opponent_sid)
+
+    if not hit:
+        current_turn_index = (current_turn_index + 1) % len(player_turns)
+        print(f"Vuoro vaihtuu pelaajalle {player_turns[current_turn_index]}")
+    
+    emit('turn_change', {'current_turn': player_turns[current_turn_index]}, broadcast=True)
 
 def udp_discovery_listener():
     UDP_DISCOVERY_PORT = 5557
@@ -108,3 +135,6 @@ def run_server():
     ip = get_my_ip()
     print(f"Server toimii IP-osoitteessa: {ip}")
     socketio.run(app, host="0.0.0.0", port=5555)
+
+if __name__ == "__main__":
+    run_server()
