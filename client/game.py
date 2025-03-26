@@ -1,8 +1,8 @@
-# client/game.py
 import pygame
 import sys
 import time
 import copy
+import network
 
 pygame.init()
 pygame.font.init()
@@ -14,16 +14,17 @@ fontti = pygame.font.SysFont(None, 50)
 screen = pygame.display.set_mode((LEVEYS, KORKEUS), pygame.RESIZABLE)
 pygame.display.set_caption("Laivanupotus")
 
-# Määritellään alueet ja ruudukon piirtämiseen liittyvät muuttujat
+# Alueet ja ruudukon piirtämiseen liittyvät muuttujat
 host_rect = pygame.Rect(LEVEYS // 2 - 160, 300, 150, 50)
 join_rect = pygame.Rect(LEVEYS // 2 + 5, 300, 150, 50)
 laivojen_asetus_rect = pygame.Rect(((LEVEYS/2)-150), 400, 300, 50)
 
-# 2D listat laivoille ja pommituksille
+# 2D-listat laivoille ja pommituksille
 laivat = [[0]*10 for _ in range(10)]
-bomb_data = [[0]*10 for _ in range(10)]
+own_bomb_data = [[0]*10 for _ in range(10)]  # Omat laivat + pommitukset
+opponent_bomb_data = [[0]*10 for _ in range(10)]  # Vastustajan ruudukko
 
-# Esimerkkilaivat (alkuperäinen logiikka)
+# Esimerkkilaivat
 lentotukialus = [[-1, -1], [2,3], [2,4], [2,5], [2,6]]
 lentotukialusCopy = copy.deepcopy(lentotukialus)
 taistelulaiva = [[-1, -1], [9,1], [9,2], [9,3]]
@@ -37,7 +38,6 @@ havittajaCopy = copy.deepcopy(havittaja)
 sukellusvene = [[-1, -1]]
 sukellusveneCopy = copy.deepcopy(sukellusvene)
 
-# Funktio ruudukon piirtämiselle
 def piirra_ruudukko():
     screen.fill((255,255,255))
     for i in range(11):
@@ -49,9 +49,6 @@ def piirra_ruudukko():
             aakkonen_text = fontti.render(chr(i+64), True, (0,0,0))
             screen.blit(aakkonen_text, (((LEVEYS/11)*i)+5, (KORKEUS/11)*0.1))
     pygame.display.flip()
-
-# Muut funktiot (piirrä_laivat, update_bomb_data, aseta_laivat, ym.) ovat peräisin alkuperäisestä koodistasi.
-# Tässä esimerkissä ne on liitetty sellaisinaan, jotta peli toimii samalla logiikalla.
 
 def piirra_laivat():
     global laivat
@@ -84,26 +81,67 @@ def piirra_laivat():
                 pygame.display.flip()
 
 def update_bomb_data(x, y):
-    if bomb_data[x][y] == 0:
+    if own_bomb_data[x][y] == 0:
         if laivat[x][y] == 1:
             print("Osuma!")
-            bomb_data[x][y] = 2
+            own_bomb_data[x][y] = 2
         else:
             print("Ohitus!")
-            bomb_data[x][y] = 1
+            own_bomb_data[x][y] = 1
 
 def piirra_pommitukset():
+    left_cell_width = (LEVEYS / 2) / 11
+    right_cell_width = (LEVEYS / 2) / 11
+    cell_height = KORKEUS / 11
+    
+    # Oma ruudukko (vasen) - vastustajan laukaukset
     for x in range(10):
         for y in range(10):
-            if bomb_data[x][y] != 0:
-                cell_x = (LEVEYS/11)*x + (LEVEYS/11)
-                cell_y = (KORKEUS/11)*y + (KORKEUS/11)
-                if bomb_data[x][y] == 1:
-                    color = (0,0,0)
-                elif bomb_data[x][y] == 2:
-                    color = (255,0,0)
-                pygame.draw.circle(screen, color, (int(cell_x + (LEVEYS/10.9)/2), int(cell_y + (KORKEUS/10.9)/2)), int(LEVEYS/30))
-    pygame.display.flip()
+            if own_bomb_data[x][y] != 0:
+                left_cell_x = left_cell_width * (x + 1)
+                left_cell_y = cell_height * (y + 1)
+                
+                if own_bomb_data[x][y] == 2:  # Osuma
+                    # Punainen täysi ympyrä
+                    pygame.draw.circle(screen, (255, 0, 0), 
+                                     (int(left_cell_x + left_cell_width/2), 
+                                      int(left_cell_y + cell_height/2)), 
+                                     int(left_cell_width/3))
+                else:  # Ohilaukaus
+                    # Musta rengas
+                    pygame.draw.circle(screen, (0, 0, 0), 
+                                     (int(left_cell_x + left_cell_width/2), 
+                                      int(left_cell_y + cell_height/2)), 
+                                     int(left_cell_width/3), 2)
+
+    # Vastustajan ruudukko (oikea) - omat laukaukset
+    for x in range(10):
+        for y in range(10):
+            if opponent_bomb_data[x][y] != 0:
+                right_cell_x = (LEVEYS / 2) + right_cell_width * (x + 1)
+                right_cell_y = cell_height * (y + 1)
+                
+                if opponent_bomb_data[x][y] == 2:  # Osuma
+                    # Punainen risti (X)
+                    cross_size = right_cell_width / 3
+                    center_x = right_cell_x + right_cell_width / 2
+                    center_y = right_cell_y + cell_height / 2
+                    pygame.draw.line(screen, (255, 0, 0),
+                                   (int(center_x - cross_size), 
+                                    int(center_y - cross_size)),
+                                   (int(center_x + cross_size), 
+                                    int(center_y + cross_size)), 3)
+                    pygame.draw.line(screen, (255, 0, 0),
+                                   (int(center_x + cross_size), 
+                                    int(center_y - cross_size)),
+                                   (int(center_x - cross_size), 
+                                    int(center_y + cross_size)), 3)
+                else:  # Ohilaukaus
+                    # Sininen ympyrä
+                    pygame.draw.circle(screen, (0, 0, 255), 
+                                     (int(right_cell_x + right_cell_width/2), 
+                                      int(right_cell_y + cell_height/2)), 
+                                     int(right_cell_width/4))
 
 def aseta_laivat():
     piirra_ruudukko()
@@ -153,6 +191,19 @@ def piirra_yksi_laiva(laiva_yksi, vari_yksi):
         pygame.draw.rect(screen, (vari_yksi[0], vari_yksi[1], vari_yksi[2]), cell_rect)
         pygame.display.flip()
 
+def update_game_display():
+    """Päivittää ruudun sisällön"""
+    screen.fill((255, 255, 255))
+    piirra_kaksi_ruudukkoa()
+    piirra_omatlaivat_kahteen_ruudukkoon()
+    piirra_pommitukset()
+    
+    # Näytä vuorotilanne
+    vuoro_teksti = fontti.render("SINUN VUOROSI" if network.my_turn else "VASTUSTAJAN VUORO", 
+                                True, (255, 0, 0) if network.my_turn else (0, 0, 255))
+    screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
+    
+    pygame.display.flip()  # Tämä on tärkeä - päivittää näytön
 def aseta_yksi_laiva(laivaTemp):
     vari_asetus = [33,55,66]
     if laivaTemp[0][0] == -1:
@@ -325,30 +376,37 @@ def run_game():
     clock = pygame.time.Clock()
     running = True
     start_screen = True
+    if not network.sio.connected:
+        network.connect_to_server()
 
     while running:
         clock.tick(30)
         events = pygame.event.get()
+        
         for event in events:
             if event.type == pygame.QUIT:
                 running = False
-            # Tarkistetaan custom-eventti, joka päivittää pelitilan
             elif event.type == GAME_STATE_UPDATE:
                 game_state = event.new_state
                 print("Pelitila päivittyi:", game_state)
-        
+            elif event.type == pygame.USEREVENT:
+                if hasattr(event, 'custom_type'):
+                    if event.custom_type == 'turn_update':
+                        print("Vuoro päivittyi - päivitetään näyttö")
+                        update_game_display()
+                    elif event.custom_type == 'bomb_update':
+                        print("Pommitustieto päivittyi - päivitetään näyttö")
+                        update_game_display()
         if start_screen:
             for event in events:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_h:
                         print("Hosting game...")
-                        from network import connect_to_server
-                        connect_to_server()
+                        network.connect_to_server()
                         start_screen = False
                     elif event.key == pygame.K_j:
                         print("Joining game...")
-                        from network import connect_to_server
-                        connect_to_server()
+                        network.connect_to_server()
                         start_screen = False
                     elif event.key == pygame.K_a:
                         print("laivojen asettaminen...")
@@ -357,13 +415,11 @@ def run_game():
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if host_rect.collidepoint(event.pos):
                         print("Hosting game...")
-                        from network import connect_to_server
-                        connect_to_server()
+                        network.connect_to_server()
                         start_screen = False
                     elif join_rect.collidepoint(event.pos):
                         print("Joining game...")
-                        from network import connect_to_server
-                        connect_to_server()
+                        network.connect_to_server()
                         start_screen = False
                     elif laivojen_asetus_rect.collidepoint(event.pos):
                         print("laivojen asettaminen...")
@@ -372,35 +428,47 @@ def run_game():
             draw_start_screen()
         elif game_state == "setup_ships":
             print("Siirrytään laivojen asetteluun...")
-            screen.fill((255,255,255))
+            screen.fill((255, 255, 255))
             aseta_laivat()
-            # Kun laivat on asetettu, voidaan päivittää tilaksi "playing"
+            # Kerätään laivojen koordinaatit ja lähetetään palvelimelle
+            all_ships = []
+            for ship in [lentotukialus, taistelulaiva, risteilija1, risteilija2, havittaja, sukellusvene]:
+                for coord in ship:
+                    if coord[0] != -1:
+                        all_ships.append(coord)
+            network.sio.emit('set_ships', {'ships': all_ships})
             pygame.event.post(pygame.event.Event(GAME_STATE_UPDATE, {"new_state": "playing"}))
         elif game_state == "playing":
-            for event in events:
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_x, mouse_y = event.pos
-                    left_board_width = LEVEYS / 2
-                    left_cell_width = (LEVEYS / 2) / 11
-                    left_cell_height = KORKEUS / 11
-                    if mouse_x > left_board_width:
-                        oikea_offset = mouse_x - left_board_width
-                        cell_x = int(oikea_offset // left_cell_width)
-                        cell_y = int(mouse_y // left_cell_height)
-                        if 0 <= cell_x < 10 and 0 <= cell_y < 10:
-                            # Tsekataan vuoro ennen ampumista
-                            from network import my_turn, sio
-                            if my_turn:
-                                print(f"Klikkasit vastustajan ruudukon ruutua: ({cell_x}, {cell_y})")
-                                sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
-                            else:
-                                print("Ei sinun vuorosi, odota!")
+        # Piirrä ruudukot ja tilanne
             piirra_kaksi_ruudukkoa()
             piirra_omatlaivat_kahteen_ruudukkoon()
-            clock.tick(30)
+            piirra_pommitukset()
+            
+            # Näytä vuorotiedote ruudulla
+            vuoro_teksti = fontti.render("SINUN VUOROSI" if network.my_turn else "VASTUSTAJAN VUORO", True, (255, 0, 0))
+            screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
+            
+            for event in events:
+                if event.type == pygame.MOUSEBUTTONDOWN and network.my_turn:
+                    mouse_x, mouse_y = event.pos
+                    left_board_width = LEVEYS / 2
+                    
+                    if mouse_x > left_board_width:
+                        oikea_offset = mouse_x - left_board_width
+                        cell_width = (LEVEYS / 2) / 11
+                        cell_height = KORKEUS / 11
+                        
+                        cell_x = int(oikea_offset // cell_width)
+                        cell_y = int(mouse_y // cell_height)
+                        
+                        if 0 <= cell_x < 10 and 0 <= cell_y < 10:
+                            if opponent_bomb_data[cell_x][cell_y] == 0:
+                                print(f"Ammutaan ruutuun: ({cell_x}, {cell_y})")
+                                network.sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
+                            else:
+                                print("Tähän ruutuun on jo ammuttu!")
 
-    from network import sio
-    sio.disconnect()
+    network.sio.disconnect()
     pygame.quit()
     sys.exit()
 
