@@ -38,8 +38,7 @@ def on_your_id(data):
 def on_turn_change(data):
     global my_turn
     my_turn = (data['current_turn'] == player_id)
-    print(f"Vuoro vaihtui: {'SINUN VUOROSI' if my_turn else 'VASTUSTAJAN VUORO'}")
-    # Luodaan tapahtuma oikealla tavalla
+    # Luodaan tapahtuma OIKEIN
     event = pygame.event.Event(pygame.USEREVENT, {'custom_type': 'turn_update'})
     pygame.event.post(event)
 
@@ -54,10 +53,10 @@ def on_bomb_result(data):
     y = data['y']
     hit = data['hit']
     game.opponent_bomb_data[x][y] = 2 if hit else 1
-    print(f"Oma laukaus: ({x},{y}) - {'OSUMA' if hit else 'OHI'}")
-    # Luodaan tapahtuma oikealla tavalla
+    # Luodaan tapahtuma OIKEIN
     event = pygame.event.Event(pygame.USEREVENT, {'custom_type': 'bomb_update'})
     pygame.event.post(event)
+
 @sio.on('bomb_result')
 def on_bomb_result(data):
     x = data['x']
