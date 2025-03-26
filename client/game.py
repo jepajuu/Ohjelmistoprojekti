@@ -97,30 +97,34 @@ def piirra_pommitukset():
     for x in range(10):
         for y in range(10):
             if own_bomb_data[x][y] != 0:
-                center_x = (LEVEYS/22)*(x+1) + cell_width/2
-                center_y = (KORKEUS/11)*(y+1) + cell_height/2
+                cell_x = (LEVEYS/22)*(x+1)
+                cell_y = (KORKEUS/11)*(y+1)
                 
                 if own_bomb_data[x][y] == 2:  # Osuma
                     # Punainen täysi ympyrä
                     pygame.draw.circle(screen, (255, 0, 0), 
-                                     (int(center_x), int(center_y)), 
+                                     (int(cell_x + cell_width/2), 
+                                      int(cell_y + cell_height/2)), 
                                      int(cell_width/3))
                 else:  # Ohilaukaus
-                    # Valkoinen rengas
+                    # Musta rengas
                     pygame.draw.circle(screen, (0, 0, 0), 
-                                     (int(center_x), int(center_y)), 
+                                     (int(cell_x + cell_width/2), 
+                                      int(cell_y + cell_height/2)), 
                                      int(cell_width/3), 2)
 
     # Vastustajan ruudukko (oikea) - omat laukaukset
     for x in range(10):
         for y in range(10):
             if opponent_bomb_data[x][y] != 0:
-                center_x = (LEVEYS/2) + (LEVEYS/22)*(x+1) + cell_width/2
-                center_y = (KORKEUS/11)*(y+1) + cell_height/2
+                cell_x = (LEVEYS/2) + (LEVEYS/22)*(x+1)
+                cell_y = (KORKEUS/11)*(y+1)
                 
                 if opponent_bomb_data[x][y] == 2:  # Osuma
                     # Punainen risti (X)
                     cross_size = cell_width/3
+                    center_x = cell_x + cell_width/2
+                    center_y = cell_y + cell_height/2
                     pygame.draw.line(screen, (255, 0, 0),
                                    (int(center_x - cross_size), 
                                     int(center_y - cross_size)),
@@ -134,7 +138,8 @@ def piirra_pommitukset():
                 else:  # Ohilaukaus
                     # Sininen ympyrä
                     pygame.draw.circle(screen, (0, 0, 255), 
-                                     (int(center_x), int(center_y)), 
+                                     (int(cell_x + cell_width/2), 
+                                      int(cell_y + cell_height/2)), 
                                      int(cell_width/4))
 
 def aseta_laivat():
@@ -197,8 +202,7 @@ def update_game_display():
                                 True, (255, 0, 0) if network.my_turn else (0, 0, 255))
     screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
     
-    pygame.display.flip()
-
+    pygame.display.flip()  # Tämä on tärkeä - päivittää näytön
 def aseta_yksi_laiva(laivaTemp):
     vari_asetus = [33,55,66]
     if laivaTemp[0][0] == -1:
