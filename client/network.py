@@ -39,7 +39,10 @@ def on_turn_change(data):
     global my_turn
     my_turn = (data['current_turn'] == player_id)
     print(f"Vuoro vaihtui: {'SINUN VUOROSI' if my_turn else 'VASTUSTAJAN VUORO'}")
-    pygame.event.post(pygame.event.Event(pygame.USEREVENT, {'type': 'turn_update'}))
+    # Muutettu tapahtuman luontitapa
+    event = pygame.event.Event(pygame.USEREVENT)
+    event.type = 'turn_update'
+    pygame.event.post(event)
 
 @sio.on('game_start')
 def on_game_start(data):
@@ -60,11 +63,12 @@ def on_bomb_result(data):
     x = data['x']
     y = data['y']
     hit = data['hit']
-    opponent_bomb_data[x][y] = 2 if hit else 1
+    game.opponent_bomb_data[x][y] = 2 if hit else 1
     print(f"Oma laukaus: ({x},{y}) - {'OSUMA' if hit else 'OHI'}")
-    pygame.event.post(pygame.event.Event(pygame.USEREVENT, {'type': 'bomb_update'}))
-def on_not_your_turn(data):
-    print("Virhe:", data.get('message'))
+    # Muutettu tapahtuman luontitapa
+    event = pygame.event.Event(pygame.USEREVENT)
+    event.type = 'bomb_update'
+    pygame.event.post(event)
 
 def discover_server(timeout=5):
     import socket

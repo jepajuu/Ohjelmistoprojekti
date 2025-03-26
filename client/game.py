@@ -357,8 +357,9 @@ def run_game():
                 game_state = event.new_state
                 print("Pelitila päivittyi:", game_state)
             elif event.type == pygame.USEREVENT:
-                if event.get('type') == 'turn_update' or event.get('type') == 'bomb_update':
-                    update_game_display()
+                if hasattr(event, 'type'):  # Tarkista onko tyyppi-ominaisuus
+                    if event.type == 'turn_update' or event.type == 'bomb_update':
+                        update_game_display()
         
         if start_screen:
             for event in events:
