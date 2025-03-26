@@ -90,41 +90,42 @@ def update_bomb_data(x, y):
             own_bomb_data[x][y] = 1
 
 def piirra_pommitukset():
-    cell_width = (LEVEYS / 2) / 11
+    left_cell_width = (LEVEYS / 2) / 11
+    right_cell_width = (LEVEYS / 2) / 11
     cell_height = KORKEUS / 11
     
     # Oma ruudukko (vasen) - vastustajan laukaukset
     for x in range(10):
         for y in range(10):
             if own_bomb_data[x][y] != 0:
-                cell_x = (LEVEYS/22)*(x+1)
-                cell_y = (KORKEUS/11)*(y+1)
+                left_cell_x = left_cell_width * (x + 1)
+                left_cell_y = cell_height * (y + 1)
                 
                 if own_bomb_data[x][y] == 2:  # Osuma
                     # Punainen täysi ympyrä
                     pygame.draw.circle(screen, (255, 0, 0), 
-                                     (int(cell_x + cell_width/2), 
-                                      int(cell_y + cell_height/2)), 
-                                     int(cell_width/3))
+                                     (int(left_cell_x + left_cell_width/2), 
+                                      int(left_cell_y + cell_height/2)), 
+                                     int(left_cell_width/3))
                 else:  # Ohilaukaus
                     # Musta rengas
                     pygame.draw.circle(screen, (0, 0, 0), 
-                                     (int(cell_x + cell_width/2), 
-                                      int(cell_y + cell_height/2)), 
-                                     int(cell_width/3), 2)
+                                     (int(left_cell_x + left_cell_width/2), 
+                                      int(left_cell_y + cell_height/2)), 
+                                     int(left_cell_width/3), 2)
 
     # Vastustajan ruudukko (oikea) - omat laukaukset
     for x in range(10):
         for y in range(10):
             if opponent_bomb_data[x][y] != 0:
-                cell_x = (LEVEYS/2) + (LEVEYS/22)*(x+1)
-                cell_y = (KORKEUS/11)*(y+1)
+                right_cell_x = (LEVEYS / 2) + right_cell_width * (x + 1)
+                right_cell_y = cell_height * (y + 1)
                 
                 if opponent_bomb_data[x][y] == 2:  # Osuma
                     # Punainen risti (X)
-                    cross_size = cell_width/3
-                    center_x = cell_x + cell_width/2
-                    center_y = cell_y + cell_height/2
+                    cross_size = right_cell_width / 3
+                    center_x = right_cell_x + right_cell_width / 2
+                    center_y = right_cell_y + cell_height / 2
                     pygame.draw.line(screen, (255, 0, 0),
                                    (int(center_x - cross_size), 
                                     int(center_y - cross_size)),
@@ -138,9 +139,9 @@ def piirra_pommitukset():
                 else:  # Ohilaukaus
                     # Sininen ympyrä
                     pygame.draw.circle(screen, (0, 0, 255), 
-                                     (int(cell_x + cell_width/2), 
-                                      int(cell_y + cell_height/2)), 
-                                     int(cell_width/4))
+                                     (int(right_cell_x + right_cell_width/2), 
+                                      int(right_cell_y + cell_height/2)), 
+                                     int(right_cell_width/4))
 
 def aseta_laivat():
     piirra_ruudukko()
