@@ -354,6 +354,30 @@ def piirra_omatlaivat_kahteen_ruudukkoon():
                 pygame.draw.rect(screen, (50,50,200), cell_rect)
     pygame.display.flip()
 
+def testaa_onko_kaikki_uponnut():
+
+    tempSumOmat=0
+    tempSumSamaKuinOpponent=0
+    for x in range(len(laivat)):
+        for y in range(len(laivat[x])):
+            if laivat[x][y] == 1:
+                tempSumOmat+=1#tempsumomat tulee niin isoksi kuin laivoja on
+                            #pitäisi siis aina olla vakio riippuen laivojen määrästä 
+                            # mutta lasketaan jos halutaankin eri määrä laivoja
+            if laivat[x][y] == opponent_bomb_data[x][y]:
+                            #testaa onko siis vastustaja ampunut samaan rutuun
+                            #kuin missä oma laiva on
+                tempSumSamaKuinOpponent+=1
+    
+    if (tempSumOmat==tempSumSamaKuinOpponent):#jos samat niin silloin kaikkiin laivoihin osunut
+        print("Hävisit Kaikki lavat ovat uponneet")#
+        #
+        #tähän käsittely häviämiselle
+        #
+        #
+
+
+
 def draw_start_screen():
     screen.fill((0,0,0))
     otsikko = fontti.render("Laivanupotus peli :D", True, (255,255,255))
@@ -443,6 +467,7 @@ def run_game():
             piirra_kaksi_ruudukkoa()
             piirra_omatlaivat_kahteen_ruudukkoon()
             piirra_pommitukset()
+            testaa_onko_kaikki_uponnut()
             
             # Näytä vuorotiedote ruudulla
             vuoro_teksti = fontti.render("SINUN VUOROSI" if network.my_turn else "VASTUSTAJAN VUORO", True, (255, 0, 0))
