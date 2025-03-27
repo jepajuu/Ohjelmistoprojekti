@@ -495,8 +495,8 @@ def run_game():
                         cell_width = (LEVEYS / 2) / 11
                         cell_height = KORKEUS / 11
                         
-                        cell_x = int(oikea_offset // cell_width)
-                        cell_y = int(mouse_y // cell_height)
+                        cell_x = int(oikea_offset // cell_width)-1#hätä korjaus -1
+                        cell_y = int(mouse_y // cell_height)-1#hätä korjaus -1
                         
                         if 0 <= cell_x < 10 and 0 <= cell_y < 10:
                             if opponent_bomb_data[cell_x][cell_y] == 0:
