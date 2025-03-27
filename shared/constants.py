@@ -1,3 +1,7 @@
+# Verkkoasetukset
+DEFAULT_PORT = 5555
+DISCOVERY_PORT = 5557
+
 # Laivatyypit
 SHIP_TEMPLATES = [
     {"name": "Lentotukialus", "size": 5},
@@ -6,7 +10,3 @@ SHIP_TEMPLATES = [
     {"name": "Hävittäjä", "size": 2},
     {"name": "Sukellusvene", "size": 1}
 ]
-
-# Verkkoasetukset
-DEFAULT_PORT = 5555
-DISCOVERY_PORT = 5557

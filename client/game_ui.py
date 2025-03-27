@@ -1,7 +1,8 @@
 import pygame
-from .client_network import *
-from .config import *
+from server.config import SCREEN_WIDTH, SCREEN_HEIGHT
+from client.client_network import connect_to_server
 from shared.models import Ship
+from shared.constants import SHIP_TEMPLATES
 
 class GameUI:
     def __init__(self):
@@ -14,9 +15,13 @@ class GameUI:
         return [Ship(**template) for template in SHIP_TEMPLATES]
     
     def draw_board(self):
-        # Piirrä ruudukko ja laivat
-        pass
+        # Piirrä ruudukko ja laivat haluamallasi tavalla
+        self.screen.fill((0, 0, 0))
     
+    def handle_click(self, position):
+        # Klikkaustapahtumien käsittely
+        pass
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -32,7 +37,10 @@ class GameUI:
             self.draw_board()
             pygame.display.flip()
 
-if __name__ == "__main__":
+def main():
     ui = GameUI()
     connect_to_server()
     ui.run()
+
+if __name__ == "__main__":
+    main()

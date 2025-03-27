@@ -1,13 +1,7 @@
-import sys
-from pathlib import Path
-
-# Lisää projektin juuri Pythonin hakupolkuun
-sys.path.append(str(Path(__file__).parent.parent))
-
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
 from server.game_logic import GameManager
-from server.config import *
+from server.config import SERVER_IP, DEFAULT_PORT
 import threading
 import socket
 
@@ -15,8 +9,8 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 game_manager = GameManager()
 
-# UDP discovery listener (sama kuin aiemmin)
 def udp_discovery_listener():
+    """Kuuntelee UDP-lähetyksiä serverin löytämiseksi."""
     UDP_DISCOVERY_PORT = 5557
     DISCOVERY_REQUEST = "DISCOVER_SERVER_REQUEST"
     DISCOVERY_RESPONSE = "DISCOVER_SERVER_RESPONSE"
@@ -34,7 +28,6 @@ def udp_discovery_listener():
     finally:
         udp_sock.close()
 
-# SocketIO tapahtumankäsittelijät
 @socketio.on('connect')
 def handle_connect():
     player_id = request.sid
@@ -48,6 +41,7 @@ def handle_connect():
 @socketio.on('set_ships')
 def handle_set_ships(data):
     game_manager.set_ships(request.sid, data['ships'])
+    # Jos kaikki laivat on asetettu, voidaan lähettää viesti kaikille
     if all(p.ships for p in game_manager.game.players.values()):
         emit('all_ships_ready', broadcast=True)
 
@@ -57,7 +51,6 @@ def handle_shoot(data):
     emit('shot_result', result, broadcast=True)
 
 def run_server():
-    """Käynnistää palvelimen"""
     discovery_thread = threading.Thread(target=udp_discovery_listener, daemon=True)
     discovery_thread.start()
     print(f"Palvelin käynnistyy osoitteessa {SERVER_IP}:{DEFAULT_PORT}")
