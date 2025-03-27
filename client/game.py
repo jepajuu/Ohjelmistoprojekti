@@ -1,8 +1,9 @@
 import pygame
 import sys
 import time
-import copy
+import copy#tämä tarvitaan että voi tehdä sisäkkäisille listoille copyn
 import network
+#pip install "python-socketio"
 
 pygame.init()
 pygame.font.init()
@@ -15,16 +16,18 @@ screen = pygame.display.set_mode((LEVEYS, KORKEUS), pygame.RESIZABLE)
 pygame.display.set_caption("Laivanupotus")
 
 # Alueet ja ruudukon piirtämiseen liittyvät muuttujat
-host_rect = pygame.Rect(LEVEYS // 2 - 160, 300, 150, 50)
+host_rect = pygame.Rect(LEVEYS // 2 - 160, 300, 150, 50)#mitta vasemmasta reunasta,ylhäältä,leveys,korkeus
 join_rect = pygame.Rect(LEVEYS // 2 + 5, 300, 150, 50)
 laivojen_asetus_rect = pygame.Rect(((LEVEYS/2)-150), 400, 300, 50)
 
 # 2D-listat laivoille ja pommituksille
+#2d lista 10*10 laivoille  pelikenttä 0=ei laivaa 1=on laiva
 laivat = [[0]*10 for _ in range(10)]
 own_bomb_data = [[0]*10 for _ in range(10)]  # Omat laivat + pommitukset
 opponent_bomb_data = [[0]*10 for _ in range(10)]  # Vastustajan ruudukko
 
 # Esimerkkilaivat
+#arvot voi olla 0-9   [A-J, 1-10]
 lentotukialus = [[-1, -1], [2,3], [2,4], [2,5], [2,6]]
 lentotukialusCopy = copy.deepcopy(lentotukialus)
 taistelulaiva = [[-1, -1], [9,1], [9,2], [9,3]]
@@ -50,13 +53,14 @@ def piirra_ruudukko():
             screen.blit(aakkonen_text, (((LEVEYS/11)*i)+5, (KORKEUS/11)*0.1))
     pygame.display.flip()
 
-def piirra_laivat():
+def piirra_laivat():#myös asettaa laivat 2d listaan
     global laivat
     for i in range(len(laivat)):
         for r in range(len(laivat[i])):
             laivat[i][r] = 0
     if lentotukialus[0][0] != -1:
         for i in range(len(lentotukialus)):
+            #ja asettaa laivat 2d taulukon solut ykköseksi joissa lentotukialus on
             laivat[lentotukialus[i][0]][lentotukialus[i][1]] = 1
     if taistelulaiva[0][0] != -1:
         for i in range(len(taistelulaiva)):
@@ -185,7 +189,9 @@ def aseta_laivat():
     pygame.display.flip()
     time.sleep(2)
 
-def piirra_yksi_laiva(laiva_yksi, vari_yksi):
+#lähinnä aseta yksi laiva funktiota varten
+#piirtää laivan mutta ei lisää mitään laivat 2dListaan
+def piirra_yksi_laiva(laiva_yksi, vari_yksi):#laivan koordinaatit, RGB vari lista
     for i in range(len(laiva_yksi)):
         cell_rect = pygame.Rect(((LEVEYS/11)*laiva_yksi[i][0])+(LEVEYS/11), ((KORKEUS/11)*laiva_yksi[i][1])+(KORKEUS/11), LEVEYS/10.9, KORKEUS/10.9)
         pygame.draw.rect(screen, (vari_yksi[0], vari_yksi[1], vari_yksi[2]), cell_rect)
@@ -204,21 +210,26 @@ def update_game_display():
     screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
     
     pygame.display.flip()  # Tämä on tärkeä - päivittää näytön
+
+    #asettaa laivan eri näppäimillä
+#up,down,left,right, r kierto, y kyllä
 def aseta_yksi_laiva(laivaTemp):
+    #saa laiva listan ja jos muuttaa laiva parametria 
+    # muuttuu myös alkuperäinen joka on funktiokutsussa
     vari_asetus = [33,55,66]
-    if laivaTemp[0][0] == -1:
+    if laivaTemp[0][0] == -1:#jos laivaa ei viela asetettu laitetaan vasenpaan yla reunaan A1 ruutuun
         for i in range(len(laivaTemp)):
             laivaTemp[i][0] = 0
             laivaTemp[i][1] = i
     piirra_ruudukko()
     piirra_laivat()
-    for i in range(len(laivaTemp)):
+    for i in range(len(laivaTemp)):#testaa onko päällekkäisiä
         if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
-            vari_asetus = [200,9,9]
+            vari_asetus = [200,9,9]#jos mika tahansa paallekkain värjätään punaiseksi
     piirra_yksi_laiva(laivaTemp, vari_asetus)
     print("aseta laiva")
     asetus_Kesken = True
-    while asetus_Kesken:
+    while asetus_Kesken:#testataan mitä nappia painetaan laivojen sijoituksen aikana
         time.sleep(0.3)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -293,7 +304,7 @@ def aseta_yksi_laiva(laivaTemp):
                         piirra_ruudukko()
                         piirra_laivat()
                         piirra_yksi_laiva(laivaTemp, vari_asetus)
-                        continue
+                        continue#pitää hypätä for loopin alkuun koska laiva käännetty ja seuraava if tulisi Tosi
                     if laivaTemp[0][1] == laivaTemp[-1][1]:
                         print("Vaakatasossa")
                         for i in range(len(laivaTemp)):
