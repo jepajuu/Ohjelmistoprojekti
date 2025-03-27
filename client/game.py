@@ -475,9 +475,9 @@ def run_game():
             pygame.event.post(pygame.event.Event(GAME_STATE_UPDATE, {"new_state": "playing"}))
         elif game_state == "playing":
         # Piirrä ruudukot ja tilanne
-            piirra_kaksi_ruudukkoa()
-            piirra_omatlaivat_kahteen_ruudukkoon()
-            piirra_pommitukset()
+            # piirra_kaksi_ruudukkoa()
+            # piirra_omatlaivat_kahteen_ruudukkoon()
+            # piirra_pommitukset()
             testaa_onko_kaikki_uponnut()
             
             # Näytä vuorotiedote ruudulla
@@ -485,6 +485,7 @@ def run_game():
             screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
             
             for event in events:
+                update_game_display()
                 if event.type == pygame.MOUSEBUTTONDOWN and network.my_turn:
                     mouse_x, mouse_y = event.pos
                     left_board_width = LEVEYS / 2
@@ -503,6 +504,7 @@ def run_game():
                                 network.sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
                             else:
                                 print("Tähän ruutuun on jo ammuttu!")
+                            update_game_display()
 
     network.sio.disconnect()
     pygame.quit()
