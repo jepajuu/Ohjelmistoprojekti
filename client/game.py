@@ -23,8 +23,8 @@ laivojen_asetus_rect = pygame.Rect(((LEVEYS/2)-150), 400, 300, 50)
 # 2D-listat laivoille ja pommituksille
 #2d lista 10*10 laivoille  pelikenttä 0=ei laivaa 1=on laiva
 laivat = [[0]*10 for _ in range(10)]
-own_bomb_data = [[0]*10 for _ in range(10)]  # Omat laivat + pommitukset
-opponent_bomb_data = [[0]*10 for _ in range(10)]  # Vastustajan ruudukko
+own_bomb_data = [[0]*10 for _ in range(10)]  # Omat laivat + pommitukset (Pommit jotka vastustaja on ampunut)
+opponent_bomb_data = [[0]*10 for _ in range(10)]  # Vastustajan ruudukko(Pommit jotka ammuttu vastustajan laivoihin)
 
 # Esimerkkilaivat
 #arvot voi olla 0-9   [A-J, 1-10]
@@ -392,7 +392,8 @@ def testaa_onko_kaikki_uponnut():
                 tempSumOmat+=1#tempsumomat tulee niin isoksi kuin laivoja on
                             #pitäisi siis aina olla vakio riippuen laivojen määrästä 
                             # mutta lasketaan jos halutaankin eri määrä laivoja
-            if laivat[x][y] == opponent_bomb_data[x][y]:
+            if ((laivat[x][y]==1) and (own_bomb_data[x][y]==2)):
+                            #own_bomb_data 0=ei ammuttu 1=ohi  2=osuma
                             #testaa onko siis vastustaja ampunut samaan rutuun
                             #kuin missä oma laiva on
                 tempSumSamaKuinOpponent+=1
