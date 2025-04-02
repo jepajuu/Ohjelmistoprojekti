@@ -41,25 +41,43 @@ def on_turn_change(data):
 def on_game_start(data):
     print(data['message'])
 
+# Kun palvelin vastaa tiedolla omasta pommituksesta
+# Tämä käsittelee tuloksen siitä, osuiko pelaajan laukaus vastustajan ruudukkoon
 @sio.on('bomb_result')
 def on_bomb_result(data):
-    x = data['x']
-    y = data['y']
-    hit = data['hit']
+    x = data['x'] 
+    y = data['y'] 
+    hit = data['hit']  # Totuusarvo osuiko laukaus
+
+    # Päivitetään vastustajan ruudukon tilanne: 2 = osuma, 1 = ohi
     opponent_bomb_data[x][y] = 2 if hit else 1
+
+    # Tulostetaan tiedot konsoliin
     print(f"Oma laukaus: ({x},{y}) - {'OSUMA' if hit else 'OHI'}")
+
+    # Laukaistaan pelissä tapahtuma, joka saa käyttöliittymän päivittämään ruudukot
     event = pygame.event.Event(pygame.USEREVENT, {'custom_type': 'bomb_update'})
     pygame.event.post(event)
 
+
+# Kun palvelin ilmoittaa, että vastustaja ampui ja tulos on tiedossa
+# Tämä kertoo, osuiko vastustajan laukaus pelaajan ruudukkoon
 @sio.on('ship_hit')
 def on_ship_hit(data):
-    x = data['x']
-    y = data['y']
-    hit = data['hit']
+    x = data['x']  
+    y = data['y']  
+    hit = data['hit']  # Totuusarvo osuiko laukaus
+
+    # Päivitetään oma ruudukko: 2 = osuma, 1 = ohi
     own_bomb_data[x][y] = 2 if hit else 1
+
+    # Tulostetaan konsoliin tieto vastustajan pommituksesta
     print(f"Vastustajan laukaus: ({x},{y}) - {'OSUMA' if hit else 'OHI'}")
+
+    # Ilmoitetaan käyttöliittymälle, että pelitilanne pitää päivittää
     event = pygame.event.Event(pygame.USEREVENT, {'custom_type': 'bomb_update'})
     pygame.event.post(event)
+
 
 @sio.on('not_your_turn')
 def on_not_your_turn(data):

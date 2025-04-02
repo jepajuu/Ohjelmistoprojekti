@@ -65,38 +65,56 @@ def handle_set_ships(data):
 
 # Muokattu ampumistapahtuma
 # Muokkaa shoot_bomb -käsittelijää lähettämään erilliset tapahtumat
+# Kuunnellaan 'shoot_bomb'-tapahtumaa, joka tulee pelaajalta, kun hän yrittää ampua pommin johonkin ruutuun
 @socketio.on('shoot_bomb')
 def handle_shoot_bomb(data):
     global current_turn_index
+
+    # Haetaan ampujan socket-id (SID)
     shooter_sid = request.sid
     print(f"Pelaaja {shooter_sid} ampuu ruutuun ({data['x']},{data['y']})")
-    
+
+    # Tarkistetaan, onko tällä pelaajalla vuoro
     if shooter_sid != player_turns[current_turn_index]:
         print("Ei vuoroa!")
+        # Lähetetään takaisin viesti, että ei ole tämän pelaajan vuoro
         emit('not_your_turn', {"message": "Odota vuoroasi!"})
         return
 
+    # Haetaan ammutun ruudun koordinaatit
     x = data.get('x')
     y = data.get('y')
+
+    # Selvitetään vastustajan SID (pelaaja joka ei ole nyt ampuja)
     opponent_sid = next((sid for sid in player_turns if sid != shooter_sid), None)
-    hit = False
-    
+
+    hit = False  # Oletuksena ei osumaa
+
+    # Jos vastustajalla on laivataulu
     if opponent_sid in player_boards:
+        # Tarkistetaan, onko kyseinen koordinaatti vastustajan laivalistassa (osuma)
         hit = [x, y] in player_boards[opponent_sid]
         if hit:
+            # Poistetaan osuttu ruutu vastustajan laivoista (upotus logiikka)
             player_boards[opponent_sid].remove([x, y])
             print("OSUMA!")
         else:
             print("OHI!")
 
+    # Lähetetään tulos ampujalle (oman ruudukon päivittämiseksi)
     emit('bomb_result', {'x': x, 'y': y, 'hit': hit}, room=shooter_sid)
+
+    # Lähetetään tieto myös vastustajalle (omien laivojen tilan päivittämiseksi)
     emit('ship_hit', {'x': x, 'y': y, 'hit': hit}, room=opponent_sid)
 
+    # Jos ei osuttu, vuoro vaihtuu
     if not hit:
         current_turn_index = (current_turn_index + 1) % len(player_turns)
         print(f"Vuoro vaihtuu pelaajalle {player_turns[current_turn_index]}")
-    
+
+    # Lähetetään uusi vuorotilanne kaikille pelaajille
     emit('turn_change', {'current_turn': player_turns[current_turn_index]}, broadcast=True)
+
 
 def udp_discovery_listener():
     UDP_DISCOVERY_PORT = 5557

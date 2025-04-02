@@ -84,14 +84,18 @@ def piirra_laivat():#myös asettaa laivat 2d listaan
                 pygame.draw.rect(screen, (50,50,200), cell_rect)
                 pygame.display.flip()
 
+# Päivittää oman ruudukon (own_bomb_data) tiedon siitä, osuiko vastustajan laukaus omiin laivoihin
 def update_bomb_data(x, y):
+    # Tarkistetaan, onko kyseiseen ruutuun jo osuttu tai ammuttu (0 = ei aiempaa pommitusta)
     if own_bomb_data[x][y] == 0:
+        # Jos kohdassa on oma laiva (1), kyseessä on osuma
         if laivat[x][y] == 1:
             print("Osuma!")
-            own_bomb_data[x][y] = 2
+            own_bomb_data[x][y] = 2  # 2 tarkoittaa osumaa omassa ruudukossa
         else:
             print("Ohitus!")
-            own_bomb_data[x][y] = 1
+            own_bomb_data[x][y] = 1  # 1 tarkoittaa ohilaukausta omassa ruudukossa
+
 
 def piirra_pommitukset():
     left_cell_width = (LEVEYS / 2) / 11
@@ -501,6 +505,7 @@ def run_game():
                         if 0 <= cell_x < 10 and 0 <= cell_y < 10:
                             if opponent_bomb_data[cell_x][cell_y] == 0:
                                 print(f"Ammutaan ruutuun: ({cell_x}, {cell_y})")
+                                 # Lähetetään palvelimelle 'shoot_bomb'-tapahtuma, jossa kerrotaan ammutun ruudun koordinaatit
                                 network.sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
                             else:
                                 print("Tähän ruutuun on jo ammuttu!")
