@@ -51,7 +51,7 @@ def piirra_ruudukko():
             screen.blit(number_text, ((LEVEYS/11)*0.1, (KORKEUS/11)*i+5))
             aakkonen_text = fontti.render(chr(i+64), True, (0,0,0))
             screen.blit(aakkonen_text, (((LEVEYS/11)*i)+5, (KORKEUS/11)*0.1))
-    pygame.display.flip()
+
 
 def piirra_laivat():#myös asettaa laivat 2d listaan
     global laivat
@@ -82,7 +82,7 @@ def piirra_laivat():#myös asettaa laivat 2d listaan
             if laivat[x][y] == 1:
                 cell_rect = pygame.Rect(((LEVEYS/11)*x)+(LEVEYS/11), ((KORKEUS/11)*y)+(KORKEUS/11), LEVEYS/10.9, KORKEUS/10.9)
                 pygame.draw.rect(screen, (50,50,200), cell_rect)
-                pygame.display.flip()
+
 
 # Päivittää oman ruudukon (own_bomb_data) tiedon siitä, osuiko vastustajan laukaus omiin laivoihin
 def update_bomb_data(x, y):
@@ -190,6 +190,7 @@ def aseta_laivat():
     sukellusvene = aseta_yksi_laiva(sukellusveneCopy)
     piirra_ruudukko()
     piirra_laivat()
+
     pygame.display.flip()
     time.sleep(2)
 
@@ -199,7 +200,7 @@ def piirra_yksi_laiva(laiva_yksi, vari_yksi):#laivan koordinaatit, RGB vari list
     for i in range(len(laiva_yksi)):
         cell_rect = pygame.Rect(((LEVEYS/11)*laiva_yksi[i][0])+(LEVEYS/11), ((KORKEUS/11)*laiva_yksi[i][1])+(KORKEUS/11), LEVEYS/10.9, KORKEUS/10.9)
         pygame.draw.rect(screen, (vari_yksi[0], vari_yksi[1], vari_yksi[2]), cell_rect)
-        pygame.display.flip()
+
 
 def update_game_display():
     """Päivittää ruudun sisällön"""
@@ -213,7 +214,7 @@ def update_game_display():
                                 True, (255, 0, 0) if network.my_turn else (0, 0, 255))
     screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
     
-    pygame.display.flip()  # Tämä on tärkeä - päivittää näytön
+
 
     #asettaa laivan eri näppäimillä
 #up,down,left,right, r kierto, y kyllä
@@ -231,10 +232,11 @@ def aseta_yksi_laiva(laivaTemp):
         if laivat[laivaTemp[i][0]][laivaTemp[i][1]]:
             vari_asetus = [200,9,9]#jos mika tahansa paallekkain värjätään punaiseksi
     piirra_yksi_laiva(laivaTemp, vari_asetus)
+    pygame.display.flip() # piirtää alkutilanteen
+
     print("aseta laiva")
     asetus_Kesken = True
     while asetus_Kesken:#testataan mitä nappia painetaan laivojen sijoituksen aikana
-        time.sleep(0.3)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 from network import sio
@@ -254,6 +256,7 @@ def aseta_yksi_laiva(laivaTemp):
                     piirra_ruudukko()
                     piirra_laivat()
                     piirra_yksi_laiva(laivaTemp, vari_asetus)
+                    pygame.display.flip()
                 elif event.key == pygame.K_UP:
                     print("Up")
                     if laivaTemp[0][1] > 0 and laivaTemp[-1][1] > 0:
@@ -266,6 +269,7 @@ def aseta_yksi_laiva(laivaTemp):
                     piirra_ruudukko()
                     piirra_laivat()
                     piirra_yksi_laiva(laivaTemp, vari_asetus)
+                    pygame.display.flip()
                 elif event.key == pygame.K_LEFT:
                     print("Left")
                     if laivaTemp[0][0] > 0 and laivaTemp[-1][0] > 0:
@@ -278,6 +282,7 @@ def aseta_yksi_laiva(laivaTemp):
                     piirra_ruudukko()
                     piirra_laivat()
                     piirra_yksi_laiva(laivaTemp, vari_asetus)
+                    pygame.display.flip()
                 elif event.key == pygame.K_RIGHT:
                     print("Right")
                     if laivaTemp[0][0] < 9 and laivaTemp[-1][0] < 9:
@@ -290,6 +295,7 @@ def aseta_yksi_laiva(laivaTemp):
                     piirra_ruudukko()
                     piirra_laivat()
                     piirra_yksi_laiva(laivaTemp, vari_asetus)
+                    pygame.display.flip()
                 elif event.key == pygame.K_r:
                     print("rotate")
                     if laivaTemp[0][0] == laivaTemp[-1][0]:
@@ -308,6 +314,7 @@ def aseta_yksi_laiva(laivaTemp):
                         piirra_ruudukko()
                         piirra_laivat()
                         piirra_yksi_laiva(laivaTemp, vari_asetus)
+                        pygame.display.flip()
                         continue#pitää hypätä for loopin alkuun koska laiva käännetty ja seuraava if tulisi Tosi
                     if laivaTemp[0][1] == laivaTemp[-1][1]:
                         print("Vaakatasossa")
@@ -325,6 +332,7 @@ def aseta_yksi_laiva(laivaTemp):
                         piirra_ruudukko()
                         piirra_laivat()
                         piirra_yksi_laiva(laivaTemp, vari_asetus)
+                        pygame.display.flip()
                 elif event.key == pygame.K_y:
                     print("Ok Tähän")
                     VoiAsettaa = True
@@ -334,6 +342,11 @@ def aseta_yksi_laiva(laivaTemp):
                     if VoiAsettaa:
                         asetus_Kesken = False
                         break
+                    piirra_ruudukko()
+                    piirra_laivat()
+                    piirra_yksi_laiva(laivaTemp, vari_asetus)
+                    pygame.display.flip()
+
     return laivaTemp
 
 def piirra_kaksi_ruudukkoa():
@@ -367,7 +380,7 @@ def piirra_omatlaivat_kahteen_ruudukkoon():
             if laivat[x][y] == 1:
                 cell_rect = pygame.Rect(((LEVEYS/22)*x)+(LEVEYS/22), ((KORKEUS/11)*y)+(KORKEUS/11), LEVEYS/21.9, KORKEUS/10.9)
                 pygame.draw.rect(screen, (50,50,200), cell_rect)
-    pygame.display.flip()
+
 
 def testaa_onko_kaikki_uponnut():
 
@@ -487,6 +500,7 @@ def run_game():
             # Näytä vuorotiedote ruudulla
             vuoro_teksti = fontti.render("SINUN VUOROSI" if network.my_turn else "VASTUSTAJAN VUORO", True, (255, 0, 0))
             screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
+            pygame.display.flip()
             
             for event in events:
                 update_game_display()
