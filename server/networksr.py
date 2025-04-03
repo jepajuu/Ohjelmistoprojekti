@@ -38,6 +38,7 @@ def handle_connect():
         # Aloitetaan peli: ensimmäisen pelaajan vuoro
         emit('turn_change', {'current_turn': player_turns[current_turn_index]}, broadcast=True)
         emit('game_start', {"message": "Peli alkaa"}, broadcast=True)
+        emit('all_players_sid', {"message": players}, broadcast=True)#lähettää sidt kaikista pelaajista kaikille
 
 @socketio.on('disconnect')
 def handle_disconnect():

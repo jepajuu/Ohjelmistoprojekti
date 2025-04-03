@@ -401,6 +401,9 @@ def testaa_onko_kaikki_uponnut():
     if (tempSumOmat==tempSumSamaKuinOpponent):#jos samat niin silloin kaikkiin laivoihin osunut
         print("Hävisit Kaikki lavat ovat uponneet")#
         #
+        aakkonen_text = fontti.render("HÄVISIT", True, (0,0,0))
+        screen.blit(aakkonen_text, ((LEVEYS/2), (KORKEUS/2)))#hävisit teksti
+        pygame.time.Clock().tick(300)
         #tähän käsittely häviämiselle
         #
         #

@@ -29,6 +29,14 @@ def on_your_id(data):
     player_id = data['id']
     print("Oma tunniste:", player_id)
 
+@sio.on('all_players_sid')#vastaanottaa tiedon palvelimelta kaikista pelaajista
+def all_players_dict(data):
+    players_all = data['message']
+    print("Vastustajan tunniste:", players_all)
+
+
+
+
 @sio.on('turn_change')
 def on_turn_change(data):
     global my_turn
