@@ -6,7 +6,7 @@ import socket
 maks_pelaajat = 2
 
 # Pelaajien tiedot: socket-id:t ja vuorojärjestys
-players = {}         # Esim. {sid: ip}
+players = {}         # dictionary jossa liittyneiden pelaajien {sid: ip} 
 player_turns = []    # Lista socket-id:itä
 current_turn_index = 0
 

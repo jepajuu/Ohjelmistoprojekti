@@ -12,9 +12,9 @@ pygame.init()
 pygame.font.init()
 GAME_STATE_UPDATE = pygame.USEREVENT + 1
 
-@sio.on("player_joined")
+@sio.on("player_joined")#kun uusi pelaaja liittynyt palvelimelle tullaan tänne
 def on_player_joined(data):
-    players_ready = data["players_connected"]
+    players_ready = data["players_connected"]#määrä montako pelaajaa liittynyt
     print(f"Pelaajia liittynyt: {players_ready}")
     if players_ready >= 2:
         pygame.event.post(pygame.event.Event(GAME_STATE_UPDATE, {"new_state": "setup_ships"}))
