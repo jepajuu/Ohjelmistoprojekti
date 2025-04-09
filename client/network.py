@@ -12,32 +12,6 @@ pygame.init()
 pygame.font.init()
 GAME_STATE_UPDATE = pygame.USEREVENT + 1
 
-#tapahtumankäsitttelijä uuden pelin laivanasetukselle
-@sio.on('setup_ships')
-def on_setup_ships(data):
-    print("Aseta laivasi uudelleen")
-    pygame.event.post(pygame.event.Event(GAME_STATE_UPDATE, {"new_state": "setup_ships"}))
-
-@sio.on('waiting_for_players')
-def on_waiting(data):
-    print(data['message'])
-#tapahtumankäsittelijä pelin tilan päivitykselle
-# Tämä tapahtumankäsittelijä vastaanottaa pelin tilan päivityksen palvelimelta
-@sio.on('game_state_update')
-def on_game_state_update(data):
-    new_state = data.get('new_state')
-    print(f"Pelin tila muuttuu: {new_state}")
-    event = pygame.event.Event(GAME_STATE_UPDATE, {"new_state": new_state})
-    pygame.event.post(event)
-
-#uuden pelin käsittelijä
-# network.py (muutokset)
-@sio.on('game_reset')
-def on_game_reset(data):
-    global my_turn
-    print("Peli on resetoitu, valmiina uuteen peliin")
-    pygame.event.post(pygame.event.Event(GAME_STATE_UPDATE, {"new_state": "setup_ships"}))
-
 @sio.on("player_joined")#kun uusi pelaaja liittynyt palvelimelle tullaan tänne
 def on_player_joined(data):
     players_ready = data["players_connected"]#määrä montako pelaajaa liittynyt
@@ -73,7 +47,7 @@ def on_turn_change(data):
 
 @sio.on('game_start')
 def on_game_start(data):
-    print("Peli alkoi!")
+    print(data['message'])
 
 # Kun palvelin vastaa tiedolla omasta pommituksesta
 # Tämä käsittelee tuloksen siitä, osuiko pelaajan laukaus vastustajan ruudukkoon

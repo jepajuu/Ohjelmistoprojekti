@@ -20,55 +20,25 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 def index():
     return "Peli-serveri toimii!"
 
-#handle_reset -tapahtumankäsittelijä
-@socketio.on('reset_game')
-def handle_reset():
-    global players, player_turns, current_turn_index, player_boards
-    # Pidetään pelaajat, mutta nollataan muut tiedot
-    player_turns = list(players.keys())
-    current_turn_index = 0
-    player_boards = {}
-    print("Peli resetoidtu, valmiina uuteen peliin")
-    emit('game_reset', {}, broadcast=True)
-    # Lähetä vuoro ensimmäiselle pelaajalle
-    emit('turn_change', {'current_turn': player_turns[current_turn_index]}, broadcast=True)
-
 @socketio.on('connect')
 def handle_connect():
     global current_turn_index
     sid = request.sid
     players[sid] = request.remote_addr
     player_turns.append(sid)
+    # Lähetetään asiakkaalle oma tunniste
     emit('your_id', {'id': sid})
     print(f"Pelaaja {sid} liittyi. Pelaajia yhteensä: {len(players)}")
     
-    # Lähetä pelaajalle tieto siitä, onko peli käynnissä vai odottamassa toista pelaajaa
-    if len(players) < maks_pelaajat:
-        emit('waiting_for_players', {'message': 'Odotetaan toista pelaajaa...'})
-    else:
-        # Lähetä kaikille pelaajille tieto pelin alkamisesta
-        emit('player_joined', {"players_connected": len(players)}, broadcast=True)
-        emit('all_players_sid', {"message": players}, broadcast=True)
-        # Älä lähetä vielä game_start -viestiä, vaan odota että molemmat asettavat laivat
-        emit('setup_ships', {}, broadcast=True)
-
-@socketio.on('ships_ready')
-def handle_ships_ready(data):
-    sid = request.sid
-    print(f"Pelaaja {sid} on valmis")
+    # Ilmoitetaan kaikille pelaajien määrä
+    emit('player_joined', {"players_connected": len(players)}, broadcast=True)
     
-    if 'ready_players' not in players:
-        players['ready_players'] = set()
-    
-    players['ready_players'].add(sid)
-    
-    if len(players['ready_players']) == maks_pelaajat:
-        print("Kaikki pelaajat valmiita - peli alkaa!")
-        current_turn_index = 0
-        emit('game_start', {}, broadcast=True)
+    if len(players) == maks_pelaajat:
+        print("Peli alkaa, molemmat pelaajat ovat liittyneet")
+        # Aloitetaan peli: ensimmäisen pelaajan vuoro
         emit('turn_change', {'current_turn': player_turns[current_turn_index]}, broadcast=True)
-        emit('game_state_update', {'new_state': 'playing'}, broadcast=True)
-        del players['ready_players']
+        emit('game_start', {"message": "Peli alkaa"}, broadcast=True)
+        emit('all_players_sid', {"message": players}, broadcast=True)#lähettää sidt kaikista pelaajista kaikille
 
 @socketio.on('disconnect')
 def handle_disconnect():

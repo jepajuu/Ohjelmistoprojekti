@@ -15,12 +15,6 @@ fontti = pygame.font.SysFont(None, 50)
 screen = pygame.display.set_mode((LEVEYS, KORKEUS), pygame.RESIZABLE)
 pygame.display.set_caption("Laivanupotus")
 
-game_over = False
-winner_text = ""
-
-ships_set = False
-
-
 # Alueet ja ruudukon piirtämiseen liittyvät muuttujat
 host_rect = pygame.Rect(LEVEYS // 2 - 160, 300, 150, 50)#mitta vasemmasta reunasta,ylhäältä,leveys,korkeus
 join_rect = pygame.Rect(LEVEYS // 2 + 5, 300, 150, 50)
@@ -197,19 +191,8 @@ def aseta_laivat():
     piirra_ruudukko()
     piirra_laivat()
 
-    # Kerätään laivojen koordinaatit ja lähetetään palvelimelle
-    all_ships = []
-    for ship in [lentotukialus, taistelulaiva, risteilija1, risteilija2, havittaja, sukellusvene]:
-        for coord in ship:
-            if coord[0] != -1:
-                all_ships.append(coord)
-    
-    # Lähetä laivat palvelimelle ja ilmoita valmiudesta
-    network.sio.emit('set_ships', {'ships': all_ships})
-    network.sio.emit('ships_ready', {})
-    
     pygame.display.flip()
-    return True  # Palauta True kun laivat on asetettu
+    time.sleep(2)
 
 #lähinnä aseta yksi laiva funktiota varten
 #piirtää laivan mutta ei lisää mitään laivat 2dListaan
@@ -219,7 +202,6 @@ def piirra_yksi_laiva(laiva_yksi, vari_yksi):#laivan koordinaatit, RGB vari list
         pygame.draw.rect(screen, (vari_yksi[0], vari_yksi[1], vari_yksi[2]), cell_rect)
 
 
-# game.py (lisäys)
 def update_game_display():
     """Päivittää ruudun sisällön"""
     screen.fill((255, 255, 255))
@@ -231,6 +213,7 @@ def update_game_display():
     vuoro_teksti = fontti.render("SINUN VUOROSI" if network.my_turn else "VASTUSTAJAN VUORO", 
                                 True, (255, 0, 0) if network.my_turn else (0, 0, 255))
     screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
+    
 
 
     #asettaa laivan eri näppäimillä
@@ -400,38 +383,31 @@ def piirra_omatlaivat_kahteen_ruudukkoon():
 
 
 def testaa_onko_kaikki_uponnut():
-    global game_over, winner_text
-    
-    tempSumOmat = 0
-    tempSumSamaKuinOpponent = 0
+
+    tempSumOmat=0
+    tempSumSamaKuinOpponent=0
     for x in range(len(laivat)):
         for y in range(len(laivat[x])):
             if laivat[x][y] == 1:
-                tempSumOmat += 1
-            if ((laivat[x][y] == 1) and (own_bomb_data[x][y] == 2)):
-                tempSumSamaKuinOpponent += 1
+                tempSumOmat+=1#tempsumomat tulee niin isoksi kuin laivoja on
+                            #pitäisi siis aina olla vakio riippuen laivojen määrästä 
+                            # mutta lasketaan jos halutaankin eri määrä laivoja
+            if ((laivat[x][y]==1) and (own_bomb_data[x][y]==2)):
+                            #own_bomb_data 0=ei ammuttu 1=ohi  2=osuma
+                            #testaa onko siis vastustaja ampunut samaan rutuun
+                            #kuin missä oma laiva on
+                tempSumSamaKuinOpponent+=1
     
-    if tempSumOmat == tempSumSamaKuinOpponent:
-        game_over = True
-        winner_text = "HÄVISIT"
-        print("Hävisit - Kaikki laivat ovat uponneet")
-        return True
-    
-    # Tarkista onko vastustajan laivat upotettu
-    opponent_hits = 0
-    for x in range(10):
-        for y in range(10):
-            if opponent_bomb_data[x][y] == 2:
-                opponent_hits += 1
-    
-    # Jos vastustaja on uponnut kaikki laivasi (oletetaan 17 ruutua laivoja)
-    if opponent_hits >= 17:  # Voit säätää tätä laivojen kokonaismäärän mukaan
-        game_over = True
-        winner_text = "VOITIT"
-        print("Voitit - Kaikki vastustajan laivat uponneet")
-        return True
-    
-    return False
+    if (tempSumOmat==tempSumSamaKuinOpponent):#jos samat niin silloin kaikkiin laivoihin osunut
+        print("Hävisit Kaikki lavat ovat uponneet")#
+        #
+        aakkonen_text = fontti.render("HÄVISIT", True, (0,0,0))
+        screen.blit(aakkonen_text, ((LEVEYS/2), (KORKEUS/2)))#hävisit teksti
+        pygame.time.Clock().tick(300)
+        #tähän käsittely häviämiselle
+        #
+        #
+
 
 
 def draw_start_screen():
@@ -451,41 +427,11 @@ def draw_start_screen():
 
 game_state = "start"
 
-def reset_game():
-    global game_over, winner_text, laivat, own_bomb_data, opponent_bomb_data
-    global lentotukialus, taistelulaiva, risteilija1, risteilija2, havittaja, sukellusvene
-    global ships_set, game_state
-    
-    # Nollaa pelitilanne
-    game_over = False
-    winner_text = ""
-    ships_set = False
-    game_state = "setup_ships"
-    
-    # Nollaa ruudukot
-    laivat = [[0]*10 for _ in range(10)]
-    own_bomb_data = [[0]*10 for _ in range(10)]
-    opponent_bomb_data = [[0]*10 for _ in range(10)]
-    
-    # Palauta laivat alkuperäiseen asentoon
-    lentotukialus = [[-1, -1], [2,3], [2,4], [2,5], [2,6]]
-    taistelulaiva = [[-1, -1], [9,1], [9,2], [9,3]]
-    risteilija1 = [[-1, -1], [1,2], [1,3]]
-    risteilija2 = [[-1, -1], [1,6], [2,6]]
-    havittaja = [[-1, -1], [-1, -1]]
-    sukellusvene = [[-1, -1]]
-    
-    # Pyydä palvelinta resetöimään peli
-    network.sio.emit('reset_game')
-
-# game.py (muutokset)
 def run_game():
-    global game_state, game_over, ships_set, start_screen
-    
+    global game_state
     clock = pygame.time.Clock()
     running = True
     start_screen = True
-    
     if not network.sio.connected:
         network.connect_to_server()
 
@@ -496,36 +442,33 @@ def run_game():
         for event in events:
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN:
-                if game_over and event.key == pygame.K_r:  # Paina R aloittaaksesi uuden pelin
-                    reset_game()
-                elif event.key == pygame.K_h and start_screen:
-                    print("Hosting game...")
-                    network.connect_to_server()
-                    start_screen = False
-                elif event.key == pygame.K_j and start_screen:
-                    print("Joining game...")
-                    network.connect_to_server()
-                    start_screen = False
-                elif event.key == pygame.K_a and start_screen:
-                    print("laivojen asettaminen...")
-                    aseta_laivat()
-                    draw_start_screen()
             elif event.type == GAME_STATE_UPDATE:
                 game_state = event.new_state
-                if game_state == "setup_ships":
-                    ships_set = False
-                elif game_state == "playing":
-                    update_game_display()  # Päivitä näyttö välittömästi pelitilaan
+                print("Pelitila päivittyi:", game_state)
             elif event.type == pygame.USEREVENT:
                 if hasattr(event, 'custom_type'):
                     if event.custom_type == 'turn_update':
+                        print("Vuoro päivittyi - päivitetään näyttö")
                         update_game_display()
                     elif event.custom_type == 'bomb_update':
+                        print("Pommitustieto päivittyi - päivitetään näyttö")
                         update_game_display()
-                        testaa_onko_kaikki_uponnut()  # Tarkista pelin loppuminen jokaisen päivityksen jälkeen
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if start_screen:
+        if start_screen:
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_h:
+                        print("Hosting game...")
+                        network.connect_to_server()
+                        start_screen = False
+                    elif event.key == pygame.K_j:
+                        print("Joining game...")
+                        network.connect_to_server()
+                        start_screen = False
+                    elif event.key == pygame.K_a:
+                        print("laivojen asettaminen...")
+                        aseta_laivat()
+                        draw_start_screen()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
                     if host_rect.collidepoint(event.pos):
                         print("Hosting game...")
                         network.connect_to_server()
@@ -538,7 +481,34 @@ def run_game():
                         print("laivojen asettaminen...")
                         aseta_laivat()
                         draw_start_screen()
-                elif game_state == "playing" and network.my_turn:
+            draw_start_screen()
+        elif game_state == "setup_ships":
+            print("Siirrytään laivojen asetteluun...")
+            screen.fill((255, 255, 255))
+            aseta_laivat()
+            # Kerätään laivojen koordinaatit ja lähetetään palvelimelle
+            all_ships = []
+            for ship in [lentotukialus, taistelulaiva, risteilija1, risteilija2, havittaja, sukellusvene]:
+                for coord in ship:
+                    if coord[0] != -1:
+                        all_ships.append(coord)
+            network.sio.emit('set_ships', {'ships': all_ships})
+            pygame.event.post(pygame.event.Event(GAME_STATE_UPDATE, {"new_state": "playing"}))
+        elif game_state == "playing":
+        # Piirrä ruudukot ja tilanne
+            # piirra_kaksi_ruudukkoa()
+            # piirra_omatlaivat_kahteen_ruudukkoon()
+            # piirra_pommitukset()
+            testaa_onko_kaikki_uponnut()
+            
+            # Näytä vuorotiedote ruudulla
+            vuoro_teksti = fontti.render("SINUN VUOROSI" if network.my_turn else "VASTUSTAJAN VUORO", True, (255, 0, 0))
+            screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
+            pygame.display.flip()
+            
+            for event in events:
+                update_game_display()
+                if event.type == pygame.MOUSEBUTTONDOWN and network.my_turn:
                     mouse_x, mouse_y = event.pos
                     left_board_width = LEVEYS / 2
                     
@@ -547,41 +517,21 @@ def run_game():
                         cell_width = (LEVEYS / 2) / 11
                         cell_height = KORKEUS / 11
                         
-                        cell_x = int(oikea_offset // cell_width)-1
-                        cell_y = int(mouse_y // cell_height)-1
+                        cell_x = int(oikea_offset // cell_width)-1#hätä korjaus -1
+                        cell_y = int(mouse_y // cell_height)-1#hätä korjaus -1
                         
                         if 0 <= cell_x < 10 and 0 <= cell_y < 10:
                             if opponent_bomb_data[cell_x][cell_y] == 0:
                                 print(f"Ammutaan ruutuun: ({cell_x}, {cell_y})")
+                                 # Lähetetään palvelimelle 'shoot_bomb'-tapahtuma, jossa kerrotaan ammutun ruudun koordinaatit
                                 network.sio.emit('shoot_bomb', {'x': cell_x, 'y': cell_y})
                             else:
                                 print("Tähän ruutuun on jo ammuttu!")
                             update_game_display()
-        
-        if game_over:
-            # Näytä lopputeksti ja ohje uuden pelin aloittamiseen
-            screen.fill((255, 255, 255))
-            result_text = fontti.render(winner_text, True, (255, 0, 0) if winner_text == "VOITIT" else (0, 0, 255))
-            restart_text = fontti.render("Paina R aloittaaksesi uuden pelin", True, (0, 0, 0))
-            screen.blit(result_text, (LEVEYS//2 - result_text.get_width()//2, KORKEUS//2 - 50))
-            screen.blit(restart_text, (LEVEYS//2 - restart_text.get_width()//2, KORKEUS//2 + 50))
-            pygame.display.flip()
-            continue
-            
-        if start_screen:
-            draw_start_screen()
-        elif game_state == "setup_ships":
-            if not ships_set:
-                print("Asetetaan laivat...")
-                ships_set = aseta_laivat()  # Odota kunnes laivat on asetettu
-            else:
-                # Odota että peli siirtyy playing-tilaan palvelimelta
-                pass
-        elif game_state == "playing":
-            update_game_display()
-            pygame.display.flip()
+
     network.sio.disconnect()
     pygame.quit()
     sys.exit()
+
 if __name__ == "__main__":
     run_game()
