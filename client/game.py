@@ -108,24 +108,25 @@ def piirra_pommitukset():
     right_cell_width = (LEVEYS / 2) / 11
     cell_height = KORKEUS / 11
     
-        # Oma ruudukko (vasen) - vastustajan laukaukset
+    # Oma ruudukko (vasen) - vastustajan laukaukset
     for x in range(10):
         for y in range(10):
             if own_bomb_data[x][y] != 0:
                 left_cell_x = left_cell_width * (x + 1)
                 left_cell_y = cell_height * (y + 1)
                 
-                if own_bomb_data[x][y] == 2:   # Osuma
+                if own_bomb_data[x][y] == 2:  # Osuma
+                    # Punainen täysi ympyrä
                     pygame.draw.circle(screen, (255, 0, 0), 
-                                       (int(left_cell_x + left_cell_width/2), 
-                                        int(left_cell_y + cell_height/2)), 
-                                       int(left_cell_width/3))
-                else:  # ohilaukaus
+                                     (int(left_cell_x + left_cell_width/2), 
+                                      int(left_cell_y + cell_height/2)), 
+                                     int(left_cell_width/3))
+                else:  # Ohilaukaus
+                    # Musta rengas
                     pygame.draw.circle(screen, (0, 0, 0), 
-                                       (int(left_cell_x + left_cell_width/2), 
-                                        int(left_cell_y + cell_height/2)), 
-                                       int(left_cell_width/3), 2)
-                    #musta rengas
+                                     (int(left_cell_x + left_cell_width/2), 
+                                      int(left_cell_y + cell_height/2)), 
+                                     int(left_cell_width/3), 2)
 
     # Vastustajan ruudukko (oikea) - omat laukaukset
     for x in range(10):
@@ -134,7 +135,8 @@ def piirra_pommitukset():
                 right_cell_x = (LEVEYS / 2) + right_cell_width * (x + 1)
                 right_cell_y = cell_height * (y + 1)
                 
-                if opponent_bomb_data[x][y] == 2:  # Hit
+                if opponent_bomb_data[x][y] == 2:  # Osuma
+                    # Punainen risti (X)
                     cross_size = right_cell_width / 3
                     center_x = right_cell_x + right_cell_width / 2
                     center_y = right_cell_y + cell_height / 2
@@ -148,12 +150,12 @@ def piirra_pommitukset():
                                     int(center_y - cross_size)),
                                    (int(center_x - cross_size), 
                                     int(center_y + cross_size)), 3)
-                else:  # Miss
+                else:  # Ohilaukaus
+                    # Sininen ympyrä
                     pygame.draw.circle(screen, (0, 0, 255), 
-                                       (int(right_cell_x + right_cell_width/2), 
-                                        int(right_cell_y + cell_height/2)), 
-                                       int(right_cell_width/4))
-
+                                     (int(right_cell_x + right_cell_width/2), 
+                                      int(right_cell_y + cell_height/2)), 
+                                     int(right_cell_width/4))
 
 def aseta_laivat():
     piirra_ruudukko()
@@ -205,7 +207,6 @@ def aseta_laivat():
     # Lähetä laivat palvelimelle ja ilmoita valmiudesta
     network.sio.emit('set_ships', {'ships': all_ships})
     network.sio.emit('ships_ready', {})
-    ships_set = True
     
     pygame.display.flip()
     return True  # Palauta True kun laivat on asetettu
@@ -401,43 +402,36 @@ def piirra_omatlaivat_kahteen_ruudukkoon():
 def testaa_onko_kaikki_uponnut():
     global game_over, winner_text
     
+    tempSumOmat = 0
+    tempSumSamaKuinOpponent = 0
+    for x in range(len(laivat)):
+        for y in range(len(laivat[x])):
+            if laivat[x][y] == 1:
+                tempSumOmat += 1
+            if ((laivat[x][y] == 1) and (own_bomb_data[x][y] == 2)):
+                tempSumSamaKuinOpponent += 1
+    
+    if tempSumOmat == tempSumSamaKuinOpponent:
+        game_over = True
+        winner_text = "HÄVISIT"
+        print("Hävisit - Kaikki laivat ovat uponneet")
+        return True
+    
     # Tarkista onko vastustajan laivat upotettu
     opponent_hits = 0
-    total_opponent_ships = 0
-    
     for x in range(10):
         for y in range(10):
             if opponent_bomb_data[x][y] == 2:
                 opponent_hits += 1
-            if laivat[x][y] == 1:  # Lasketaan vastustajan laivojen määrä
-                total_opponent_ships += 1
-
-    # tarkista onko kaikki vastustajan laivat uponneet
-    if opponent_hits >= total_opponent_ships:
+    
+    # Jos vastustaja on uponnut kaikki laivasi (oletetaan 17 ruutua laivoja)
+    if opponent_hits >= 17:  # Voit säätää tätä laivojen kokonaismäärän mukaan
         game_over = True
         winner_text = "VOITIT"
         print("Voitit - Kaikki vastustajan laivat uponneet")
         return True
     
-    # tarkista onko kaikki pelaajan laivat uponneet
-    player_hits = 0
-    total_player_ships = 0
-    
-    for x in range(10):
-        for y in range(10):
-            if own_bomb_data[x][y] == 2:
-                player_hits += 1
-            if laivat[x][y] == 1:  # lasketaan pelaajan laivojen määrä
-                total_player_ships += 1
-    
-    if player_hits >= total_player_ships:
-        game_over = True
-        winner_text = "HÄVISIT"
-        print("Hävisit - Kaikki laivat ovat uponneet")
-        return True
-
     return False
-
 
 
 def draw_start_screen():
@@ -462,17 +456,18 @@ def reset_game():
     global lentotukialus, taistelulaiva, risteilija1, risteilija2, havittaja, sukellusvene
     global ships_set, game_state
     
-    # Reset bomb data
-    own_bomb_data = [[0]*10 for _ in range(10)]
-    opponent_bomb_data = [[0]*10 for _ in range(10)]
-    
-    # Reset other game state variables
+    # Nollaa pelitilanne
     game_over = False
     winner_text = ""
     ships_set = False
     game_state = "setup_ships"
     
-    # Reset ship positions
+    # Nollaa ruudukot
+    laivat = [[0]*10 for _ in range(10)]
+    own_bomb_data = [[0]*10 for _ in range(10)]  # Lisätty nollaaminen
+    opponent_bomb_data = [[0]*10 for _ in range(10)]  # Lisätty nollaaminen
+    
+    # Palauta laivat alkuperäiseen asentoon
     lentotukialus = [[-1, -1], [2,3], [2,4], [2,5], [2,6]]
     taistelulaiva = [[-1, -1], [9,1], [9,2], [9,3]]
     risteilija1 = [[-1, -1], [1,2], [1,3]]
@@ -480,10 +475,8 @@ def reset_game():
     havittaja = [[-1, -1], [-1, -1]]
     sukellusvene = [[-1, -1]]
     
-    # Request server to reset game
+    # Pyydä palvelinta resetöimään peli
     network.sio.emit('reset_game')
-
-
 
 def run_game():
     global game_state, game_over, ships_set, start_screen
