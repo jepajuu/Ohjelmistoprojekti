@@ -32,8 +32,6 @@ def handle_reset():
     emit('game_reset', {}, broadcast=True)
     # Lähetä vuoro ensimmäiselle pelaajalle
     emit('turn_change', {'current_turn': player_turns[current_turn_index]}, broadcast=True)
-    # Lähetä tieto pelitilan päivityksestä
-    emit('game_state_update', {'new_state': 'setup_ships'}, broadcast=True)
 
 @socketio.on('connect')
 def handle_connect():

@@ -464,8 +464,8 @@ def reset_game():
     
     # Nollaa ruudukot
     laivat = [[0]*10 for _ in range(10)]
-    own_bomb_data = [[0]*10 for _ in range(10)]  # Lisätty nollaaminen
-    opponent_bomb_data = [[0]*10 for _ in range(10)]  # Lisätty nollaaminen
+    own_bomb_data = [[0]*10 for _ in range(10)]
+    opponent_bomb_data = [[0]*10 for _ in range(10)]
     
     # Palauta laivat alkuperäiseen asentoon
     lentotukialus = [[-1, -1], [2,3], [2,4], [2,5], [2,6]]
@@ -478,6 +478,7 @@ def reset_game():
     # Pyydä palvelinta resetöimään peli
     network.sio.emit('reset_game')
 
+# game.py (muutokset)
 def run_game():
     global game_state, game_over, ships_set, start_screen
     

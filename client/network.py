@@ -36,12 +36,8 @@ def on_game_state_update(data):
 def on_game_reset(data):
     global my_turn
     print("Peli on resetoitu, valmiina uuteen peliin")
-    # Nollaa pommitustiedot
-    for x in range(10):
-        for y in range(10):
-            own_bomb_data[x][y] = 0
-            opponent_bomb_data[x][y] = 0
     pygame.event.post(pygame.event.Event(GAME_STATE_UPDATE, {"new_state": "setup_ships"}))
+
 @sio.on("player_joined")#kun uusi pelaaja liittynyt palvelimelle tullaan tänne
 def on_player_joined(data):
     players_ready = data["players_connected"]#määrä montako pelaajaa liittynyt
