@@ -69,6 +69,11 @@ def handle_set_ships(data):
 # Kuunnellaan 'shoot_bomb'-tapahtumaa, joka tulee pelaajalta, kun hän yrittää ampua pommin johonkin ruutuun
 @socketio.on('shoot_bomb')
 def handle_shoot_bomb(data):
+       # Tarkistetaan, että molemmilla on laivat asetettuna
+    if len(player_boards) < 2:
+        emit('not_your_turn', {"message": "Et voi ampua ennen kuin molemmat pelaajat ovat asettaneet laivansa!"})
+        return
+    
     global current_turn_index
 
     # Haetaan ampujan socket-id (SID)
