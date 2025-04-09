@@ -64,13 +64,14 @@ def handle_ships_ready(data):
     
     players['ready_players'].add(sid)
     
-    if len(players['ready_players']) == maks_pelaajat:
+    if len(players['ready_players']) == maks_pelaajat:  # odotetaan että molemmat valmiita
         print("Kaikki pelaajat valmiita - peli alkaa!")
         current_turn_index = 0
-        emit('game_start', {}, broadcast=True)
+        emit('game_start', {}, broadcast=True)  # ilmoitetaan pelin alkaminen
         emit('turn_change', {'current_turn': player_turns[current_turn_index]}, broadcast=True)
         emit('game_state_update', {'new_state': 'playing'}, broadcast=True)
         del players['ready_players']
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
