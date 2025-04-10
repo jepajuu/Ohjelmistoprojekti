@@ -1,8 +1,13 @@
 import socketio
 import pygame
+import pygame.mixer
 from game import own_bomb_data, opponent_bomb_data
 
 sio = socketio.Client()
+
+# Ladataan äänitiedostot
+pommi_sound = pygame.mixer.Sound("pommi.wav")
+blop_sound = pygame.mixer.Sound("blop.mp3")
 
 # Globaalit muuttujat
 player_id = None
@@ -63,6 +68,12 @@ def on_bomb_result(data):
     # Tulostetaan tiedot konsoliin
     print(f"Oma laukaus: ({x},{y}) - {'OSUMA' if hit else 'OHI'}")
 
+    # --- Pommien äänet ---
+    if hit:
+        pommi_sound.play()   # Osuma
+    else:
+        blop_sound.play()    # Huti
+
     # Laukaistaan pelissä tapahtuma, joka saa käyttöliittymän päivittämään ruudukot
     event = pygame.event.Event(pygame.USEREVENT, {'custom_type': 'bomb_update'})
     pygame.event.post(event)
@@ -81,6 +92,12 @@ def on_ship_hit(data):
 
     # Tulostetaan konsoliin tieto vastustajan pommituksesta
     print(f"Vastustajan laukaus: ({x},{y}) - {'OSUMA' if hit else 'OHI'}")
+
+    # --- Pommien äänet ---
+    if hit:
+        pommi_sound.play()   # Osuma
+    else:
+        blop_sound.play()    # Huti
 
     # Ilmoitetaan käyttöliittymälle, että pelitilanne pitää päivittää
     event = pygame.event.Event(pygame.USEREVENT, {'custom_type': 'bomb_update'})
