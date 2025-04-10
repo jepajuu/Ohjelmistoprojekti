@@ -15,6 +15,7 @@ fontti = pygame.font.SysFont(None, 50)
 screen = pygame.display.set_mode((LEVEYS, KORKEUS), pygame.RESIZABLE)
 pygame.display.set_caption("Laivanupotus")
 
+
 # Alueet ja ruudukon piirtämiseen liittyvät muuttujat
 host_rect = pygame.Rect(LEVEYS // 2 - 160, 300, 150, 50)#mitta vasemmasta reunasta,ylhäältä,leveys,korkeus
 join_rect = pygame.Rect(LEVEYS // 2 + 5, 300, 150, 50)
@@ -23,8 +24,12 @@ laivojen_asetus_rect = pygame.Rect(((LEVEYS/2)-150), 400, 300, 50)
 # 2D-listat laivoille ja pommituksille
 #2d lista 10*10 laivoille  pelikenttä 0=ei laivaa 1=on laiva
 laivat = [[0]*10 for _ in range(10)]
-own_bomb_data = [[0]*10 for _ in range(10)]  # Omat laivat + pommitukset (Pommit jotka vastustaja on ampunut)
-opponent_bomb_data = [[0]*10 for _ in range(10)]  # Vastustajan ruudukko(Pommit jotka ammuttu vastustajan laivoihin)
+own_bomb_data = [[0]*10 for _ in range(10)]  # Omat laivat + pommitukset (Pommit jotka vastustaja on ampunut 2 = osuma, 1 = ohi, 0 = ei aiempaa pommitusta)
+opponent_bomb_data = [[0]*10 for _ in range(10)]  # Vastustajan ruudukko(Pommit jotka ammuttu vastustajan laivoihin 2 = osuma, 1 = ohi,0 = ei aiempaa pommitusta)
+
+#Pisteenlaskennan muuttujat
+osumat_omiin_laivoihin=0
+osumat_vastustajan_laivoihin=0
 
 # Esimerkkilaivat
 #arvot voi olla 0-9   [A-J, 1-10]
@@ -408,6 +413,22 @@ def testaa_onko_kaikki_uponnut():
         #
         #
 
+def laske_pisteet():
+    #
+    osumat_omiin_laivoihin=0
+    for x in range(len(own_bomb_data)):
+        for y in range(len(own_bomb_data[x])):
+            if (own_bomb_data[x][y]==2):#jos tosi osuma omaan laivaan
+                osumat_omiin_laivoihin+=1
+    
+    osumat_vastustajan_laivoihin=0
+    for x in range(len(opponent_bomb_data)):
+        for y in range(len(opponent_bomb_data[x])):
+            if (opponent_bomb_data[x][y]==2):#jos tosi osuma vastustajan laivaan
+                osumat_vastustajan_laivoihin+=1
+    #
+    print(f"Vastustajan pisteet {osumat_omiin_laivoihin}")
+    print(f"Omat pisteet {osumat_vastustajan_laivoihin}")
 
 
 def draw_start_screen():
@@ -528,6 +549,7 @@ def run_game():
                             else:
                                 print("Tähän ruutuun on jo ammuttu!")
                             update_game_display()
+                            laske_pisteet()
 
     network.sio.disconnect()
     pygame.quit()
