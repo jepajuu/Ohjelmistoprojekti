@@ -31,6 +31,9 @@ opponent_bomb_data = [[0]*10 for _ in range(10)]  # Vastustajan ruudukko(Pommit 
 osumat_omiin_laivoihin=0
 osumat_vastustajan_laivoihin=0
 
+#Laivojen ruutumäärä, käytetään loppuruudussa
+TOTAL_SHIP_PARTS = 18
+
 # Esimerkkilaivat
 #arvot voi olla 0-9   [A-J, 1-10]
 lentotukialus = [[-1, -1], [2,3], [2,4], [2,5], [2,6]]
@@ -45,6 +48,54 @@ havittaja = [[-1, -1], [-1, -1]]
 havittajaCopy = copy.deepcopy(havittaja)
 sukellusvene = [[-1, -1]]
 sukellusveneCopy = copy.deepcopy(sukellusvene)
+
+def tarkista_havio():
+
+    #Tarkistaa, ovatko kaikki oman puolen laivat uponneet.
+    #Palauttaa True, jos pelaaja on hävinnyt
+
+    omat_laivat = 0
+    osumat_omiin = 0
+    for x in range(len(laivat)):
+        for y in range(len(laivat[x])):
+            if laivat[x][y] == 1:
+                omat_laivat += 1
+                if own_bomb_data[x][y] == 2:  # 2 tarkoittaa osumaa omassa ruudukossa
+                    osumat_omiin += 1
+    return (omat_laivat == osumat_omiin and omat_laivat > 0)
+
+
+def tarkista_voitto():
+    
+    #Tarkistaa, onko pelaaja saanut riittävästi osumia vastustajan laivoihin (18).
+    #Palauttaa True, jos pelaaja on voittanut.
+    
+    osumat_vastustajaan = 0
+    for x in range(len(opponent_bomb_data)):
+        for y in range(len(opponent_bomb_data[x])):
+            if opponent_bomb_data[x][y] == 2:  # 2 = osuma vastustajan laivaan
+                osumat_vastustajaan += 1
+
+    # Jos osumien määrä on yhtä suuri kuin vastustajan laivojen yhteispituus
+    return (osumat_vastustajaan >= TOTAL_SHIP_PARTS)
+
+def piirra_havioruutu():
+    
+    #Piirtää häviöruudun, jossa lukee "Hävisit pelin! Paina ESC poistuaksesi".
+    
+    screen.fill((0, 0, 0))
+    teksti = fontti.render("Hävisit pelin! Paina ESC poistuaksesi", True, (255, 0, 0))
+    screen.blit(teksti, (LEVEYS // 2 - teksti.get_width() // 2, KORKEUS // 2))
+    pygame.display.flip()
+
+def piirra_voittoruutu():
+    
+    #Piirtää voittoruudun, jossa lukee "Voitit pelin! Paina ESC poistuaksesi".
+    
+    screen.fill((255, 255, 255))
+    teksti = fontti.render("Voitit pelin! Paina ESC poistuaksesi", True, (0, 128, 0))
+    screen.blit(teksti, (LEVEYS // 2 - teksti.get_width() // 2, KORKEUS // 2))
+    pygame.display.flip()
 
 def piirra_ruudukko():
     screen.fill((255,255,255))
@@ -515,6 +566,7 @@ def run_game():
                         all_ships.append(coord)
             network.sio.emit('set_ships', {'ships': all_ships})
             pygame.event.post(pygame.event.Event(GAME_STATE_UPDATE, {"new_state": "playing"}))
+
         elif game_state == "playing":
         # Piirrä ruudukot ja tilanne
             # piirra_kaksi_ruudukkoa()
@@ -550,6 +602,26 @@ def run_game():
                                 print("Tähän ruutuun on jo ammuttu!")
                             update_game_display()
                             laske_pisteet()
+
+            # Tarkistetaan pelaajan häviö/voitto
+            if tarkista_havio():
+                game_state = "lose"
+            elif tarkista_voitto():
+                game_state = "win"
+
+        elif game_state == "lose":
+            # Näytetään häviöruutu
+            piirra_havioruutu()
+            for event in events:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    running = False
+
+        elif game_state == "win":
+            # Näytetään voittoruutu
+            piirra_voittoruutu()
+            for event in events:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    running = False
 
     network.sio.disconnect()
     pygame.quit()
