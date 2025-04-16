@@ -30,6 +30,7 @@ opponent_bomb_data = [[0]*10 for _ in range(10)]  # Vastustajan ruudukko(Pommit 
 #Pisteenlaskennan muuttujat
 osumat_omiin_laivoihin=0
 osumat_vastustajan_laivoihin=0
+kaikki_pisteet_max_pisteet=0
 
 #Laivojen ruutumäärä, käytetään loppuruudussa
 TOTAL_SHIP_PARTS = 18
@@ -269,6 +270,11 @@ def update_game_display():
     vuoro_teksti = fontti.render("SINUN VUOROSI" if network.my_turn else "VASTUSTAJAN VUORO", 
                                 True, (255, 0, 0) if network.my_turn else (0, 0, 255))
     screen.blit(vuoro_teksti, (LEVEYS//2 - vuoro_teksti.get_width()//2, 20))
+
+    laske_pisteet()#asettaa piste muuttujat
+    pisteet_teksti = fontti.render(f"pisteesi {osumat_vastustajan_laivoihin}/{kaikki_pisteet_max_pisteet}", 
+                                True, (255, 0, 0))
+    screen.blit(pisteet_teksti, (LEVEYS//2 - pisteet_teksti.get_width()//2, KORKEUS-30))
     
 
 
@@ -465,6 +471,9 @@ def testaa_onko_kaikki_uponnut():
         #
 
 def laske_pisteet():
+    global osumat_omiin_laivoihin
+    global osumat_vastustajan_laivoihin
+    global kaikki_pisteet_max_pisteet
     #
     osumat_omiin_laivoihin=0
     for x in range(len(own_bomb_data)):
@@ -478,6 +487,13 @@ def laske_pisteet():
             if (opponent_bomb_data[x][y]==2):#jos tosi osuma vastustajan laivaan
                 osumat_vastustajan_laivoihin+=1
     #
+    kaikki_pisteet_max_pisteet=0
+    for x in range(len(laivat)):
+        for y in range(len(laivat[x])):
+            if laivat[x][y] == 1:
+                kaikki_pisteet_max_pisteet+=1#kaikki_pisteet_max_pisteet tulee niin isoksi kuin laivoja on esim lentotukialus on 5 pistettä
+    
+    print(f"Kaikki pisteet {kaikki_pisteet_max_pisteet}")
     print(f"Vastustajan pisteet {osumat_omiin_laivoihin}")
     print(f"Omat pisteet {osumat_vastustajan_laivoihin}")
 
